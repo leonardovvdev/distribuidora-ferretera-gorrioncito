@@ -5,7 +5,7 @@ import { icon } from "../../../../core/icons";
 /* ── Constantes ──────────────────────────────────────── */
 
 const WHATSAPP_NUMBER = "51942055324";
-const TELEFONO_VISIBLE = "+51 986 601 647";
+const TELEFONO_VISIBLE = "+51 942 055 324";
 const BUCKET = "cotizaciones";
 const PESO_MAXIMO = 10 * 1024 * 1024; // 10 MB
 
