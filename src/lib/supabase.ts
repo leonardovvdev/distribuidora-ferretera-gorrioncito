@@ -9,4 +9,4 @@ const signOutOriginal = supabase.auth.signOut.bind(supabase.auth);
 supabase.auth.signOut = async (...args) => {
   console.trace("signOut llamado desde:");
   return signOutOriginal(...args);
-};
+}; 
