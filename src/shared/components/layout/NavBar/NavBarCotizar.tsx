@@ -1,9 +1,7 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import { type ChangeEvent, useEffect, useState } from "react";
 import style from "./NavBarCotizar.module.css";
 import { supabase } from "../../../../lib/supabase";
 import { icon } from "../../../../core/icons";
-import img from "../.././../../assets/img/logoGorrion.png"
-
 /* ── Constantes ──────────────────────────────────────── */
 
 const WHATSAPP_NUMBER = "51942055324";

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+// import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabase";
 import styles from "./BarraSuperior.module.css";
@@ -30,13 +30,13 @@ export default function BarraSuperior() {
 
   return (
     <div className={styles.barrasuperior}>
-      <Link
+      {/* <Link
         to="/juve"
         className={styles.texto}
         style={{ color: barra.color_texto }}
       >
         {barra.texto}
-      </Link>
+      </Link> */}
     </div>
   );
 }

@@ -3,7 +3,24 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import style from "./NavBarSearch.module.css";
 import { icon } from "../../../../core/icons";
 
-import { clasificarBusquedaCatalogo, type ResultadoBusqueda } from "../../../../core/services/index";
+import {
+  clasificarBusquedaCatalogo,
+  type ResultadoBusqueda,
+} from "../../../../core/services/search.service";
+
+/** Ruta de /product según lo que el texto buscado resultó ser */
+const rutaDeBusqueda = (resultado: ResultadoBusqueda): string => {
+  const valor = encodeURIComponent(resultado.valor);
+
+  switch (resultado.tipo) {
+    case "marca":
+      return `/product?marca=${valor}`;
+    case "categoria":
+      return `/product?categoria=${valor}`;
+    default:
+      return `/product?q=${valor}`;
+  }
+};
 
 export const NavBarSearch = () => {
   const navigate = useNavigate();
@@ -12,27 +29,36 @@ export const NavBarSearch = () => {
   const [cargando, setCargando] = useState(false);
 
   useEffect(() => {
-    const q        = searchParams.get("q")        ?? "";
+    const q = searchParams.get("q") ?? "";
     const categoria = searchParams.get("categoria") ?? "";
-    const marca     = searchParams.get("marca")     ?? "";
+    const marca = searchParams.get("marca") ?? "";
 
-    if (q)               setBusquedaNavbar(q);
-    else if (marca)      setBusquedaNavbar(marca);
-    else if (categoria)  setBusquedaNavbar(categoria);
-    // ← NO limpiar en el else, dejar el input como está
+    if (q) setBusquedaNavbar(q);
+    else if (marca) setBusquedaNavbar(marca);
+    else if (categoria) setBusquedaNavbar(categoria);
+    // No limpiar en el else: dejar el input como está
   }, [searchParams]);
 
-const manejarSubmitBusqueda = (event: FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-  const query = busquedaNavbar.trim();
+  const manejarSubmitBusqueda = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = busquedaNavbar.trim();
 
-  if (!query) {
-    navigate("/product");
-    return;
-  }
+    if (!query) {
+      navigate("/product");
+      return;
+    }
 
-  navigate(`/product?q=${encodeURIComponent(query)}`);
-};
+    setCargando(true);
+    try {
+      const resultado = await clasificarBusquedaCatalogo(query);
+      navigate(rutaDeBusqueda(resultado));
+    } catch {
+      // Si falla la consulta de marcas/categorías, buscar por nombre de producto
+      navigate(`/product?q=${encodeURIComponent(query)}`);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   return (
     <form className={style.searchBox} onSubmit={manejarSubmitBusqueda}>
@@ -50,7 +76,6 @@ const manejarSubmitBusqueda = (event: FormEvent<HTMLFormElement>) => {
         className={style.searchInput}
         value={busquedaNavbar}
         onChange={(e) => setBusquedaNavbar(e.target.value)}
-        disabled={cargando}
       />
     </form>
   );
