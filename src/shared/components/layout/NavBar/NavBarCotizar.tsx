@@ -1,16 +1,15 @@
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import style from "./NavBarCotizar.module.css";
 import { supabase } from "../../../../lib/supabase";
-import { images } from "../../../../assets/img";
 import { icon } from "../../../../core/icons";
+import img from "../.././../../assets/img/logoGorrion.png"
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+/* ── Constantes ──────────────────────────────────────── */
 
-type DistritoItem = { nombre: string };
-type ProvinciaItem = { nombre: string; distritos: DistritoItem[] };
-type DepartamentoItem = { nombre: string; provincias: ProvinciaItem[] };
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+const WHATSAPP_NUMBER = "51942055324";
+const TELEFONO_VISIBLE = "+51 986 601 647";
+const BUCKET = "cotizaciones";
+const PESO_MAXIMO = 10 * 1024 * 1024; // 10 MB
 
 const TIPOS_PERMITIDOS = [
   "image/jpeg",
@@ -23,281 +22,165 @@ const TIPOS_PERMITIDOS = [
   "text/plain",
 ];
 
-const PESO_MAXIMO = 10 * 1024 * 1024; // 10 MB
+const soloNumeros = (valor: string, max: number) =>
+  valor.replace(/\D/g, "").slice(0, max);
 
-const ubicaciones: DepartamentoItem[] = [
-  {
-    nombre: "Junín",
-    provincias: [
-      {
-        nombre: "Huancayo",
-        distritos: [
-          { nombre: "Huancayo" }, { nombre: "Carhuacallanga" }, { nombre: "Chacapampa" },
-          { nombre: "Chicche" }, { nombre: "Chilca" }, { nombre: "Chongos Alto" },
-          { nombre: "Chupuro" }, { nombre: "Colca" }, { nombre: "Cullhuas" },
-          { nombre: "El Tambo" }, { nombre: "Huacrapuquio" }, { nombre: "Hualhuas" },
-          { nombre: "Huancán" }, { nombre: "Huasicancha" }, { nombre: "Huayucachi" },
-          { nombre: "Ingenio" }, { nombre: "Pariahuanca" }, { nombre: "Pilcomayo" },
-          { nombre: "Pucará" }, { nombre: "Quichuay" }, { nombre: "Quilcas" },
-          { nombre: "San Agustín" }, { nombre: "San Jerónimo de Tunán" }, { nombre: "Saño" },
-          { nombre: "Sapallanga" }, { nombre: "Sicaya" },
-          { nombre: "Santo Domingo de Acobamba" }, { nombre: "Viques" },
-        ],
-      },
-      {
-        nombre: "Concepción",
-        distritos: [
-          { nombre: "Concepción" }, { nombre: "Aco" }, { nombre: "Andamarca" },
-          { nombre: "Chambará" }, { nombre: "Cochas" }, { nombre: "Comas" },
-          { nombre: "Heroinas Toledo" }, { nombre: "Manzanares" },
-          { nombre: "Mariscal Castilla" }, { nombre: "Matahuasi" }, { nombre: "Mito" },
-          { nombre: "Nueve de Julio" }, { nombre: "Orcotuna" },
-          { nombre: "Santa Rosa de Ocopa" },
-        ],
-      },
-      {
-        nombre: "Chanchamayo",
-        distritos: [
-          { nombre: "La Merced" }, { nombre: "Perene" }, { nombre: "Pichanaqui" },
-          { nombre: "San Luis de Shuaro" }, { nombre: "San Ramón" }, { nombre: "Vitoc" },
-        ],
-      },
-      {
-        nombre: "Jauja",
-        distritos: [
-          { nombre: "Acolla" }, { nombre: "Apata" }, { nombre: "Ataura" },
-          { nombre: "Canchayllo" }, { nombre: "Curicaca" }, { nombre: "El Mantaro" },
-          { nombre: "Huamalí" }, { nombre: "Huaripampa" }, { nombre: "Huertas" },
-          { nombre: "Janjaillo" }, { nombre: "Julcán" }, { nombre: "Leonor Ordóñez" },
-          { nombre: "Llocllapampa" }, { nombre: "Marco" }, { nombre: "Masma" },
-          { nombre: "Masma Chicche" }, { nombre: "Molinos" }, { nombre: "Monobamba" },
-          { nombre: "Muqui" }, { nombre: "Muquiyauyo" }, { nombre: "Paca" },
-          { nombre: "Paccha" }, { nombre: "Pancán" }, { nombre: "Parco" },
-          { nombre: "Pomacancha" }, { nombre: "Ricrán" }, { nombre: "San Lorenzo" },
-          { nombre: "San Pedro de Chunán" }, { nombre: "Sausa" }, { nombre: "Sincos" },
-          { nombre: "Tunan Marca" }, { nombre: "Yauli" }, { nombre: "Yauyos" },
-        ],
-      },
-      {
-        nombre: "Junín",
-        distritos: [
-          { nombre: "Junín" }, { nombre: "Carhuamayo" },
-          { nombre: "Ondores" }, { nombre: "Ulcumayo" },
-        ],
-      },
-      {
-        nombre: "Satipo",
-        distritos: [
-          { nombre: "Satipo" }, { nombre: "Coviriali" }, { nombre: "Llaylla" },
-          { nombre: "Mazamari" }, { nombre: "Pampa Hermosa" }, { nombre: "Pangoa" },
-          { nombre: "Río Negro" }, { nombre: "Río Tambo" }, { nombre: "Vizcatán del Ene" },
-        ],
-      },
-      {
-        nombre: "Tarma",
-        distritos: [
-          { nombre: "Tarma" }, { nombre: "Acobamba" }, { nombre: "Huaricolca" },
-          { nombre: "Huasahuasi" }, { nombre: "La Unión" }, { nombre: "Palca" },
-          { nombre: "Palcamayo" }, { nombre: "San Pedro de Cajas" }, { nombre: "Tapo" },
-        ],
-      },
-      {
-        nombre: "Yauli",
-        distritos: [
-          { nombre: "La Oroya" }, { nombre: "Chacapalpa" }, { nombre: "Huay-Huay" },
-          { nombre: "Marcapomacocha" }, { nombre: "Morococha" }, { nombre: "Paccha" },
-          { nombre: "Santa Bárbara de Carhuacayan" }, { nombre: "Santa Rosa de Sacco" },
-          { nombre: "Suitucancha" }, { nombre: "Yauli" },
-        ],
-      },
-      {
-        nombre: "Chupaca",
-        distritos: [
-          { nombre: "Chupaca" }, { nombre: "Ahuac" }, { nombre: "Chongos Bajo" },
-          { nombre: "Huáchac" }, { nombre: "Huamancaca Chico" },
-          { nombre: "San Juan de Iscos" }, { nombre: "San Juan de Jarpa" },
-          { nombre: "Tres de Diciembre" }, { nombre: "Yanacancha" },
-        ],
-      },
-    ],
-  },
-];
+/* ── Subida de archivo ───────────────────────────────── */
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-async function subirArchivoCotizacion(file: File): Promise<string | null> {
+async function subirArchivo(file: File): Promise<string | null> {
   const extension = file.name.split(".").pop() ?? "bin";
-  const nombreUnico = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+  const nombre = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
   const { error } = await supabase.storage
-    .from("cotizaciones")
-    .upload(nombreUnico, file, { cacheControl: "3600", upsert: false });
+    .from(BUCKET)
+    .upload(nombre, file, { cacheControl: "3600", upsert: false });
 
   if (error) {
     console.error("Error al subir archivo:", error.message);
     return null;
   }
 
-  const { data } = supabase.storage.from("cotizaciones").getPublicUrl(nombreUnico);
-  return data.publicUrl;
+  return supabase.storage.from(BUCKET).getPublicUrl(nombre).data.publicUrl;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+/* ── Íconos ──────────────────────────────────────────── */
+
+const IconoCerrar = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      d="M6 6l12 12M18 6 6 18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+const IconoSubir = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      d="M12 15V4m0 0L8 8m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+/* ── Componente ──────────────────────────────────────── */
 
 export function NavBarCotizar() {
-  const whatsappNumber = "51942055324";
+  const [abierto, setAbierto] = useState(false);
 
-  const [mostrarModal, setMostrarModal]       = useState(false);
-  const [mostrarUbicacion, setMostrarUbicacion] = useState(false);
-
-  // Archivo
-  const [archivoNombre, setArchivoNombre]     = useState("");
-  const [archivoUrl, setArchivoUrl]           = useState<string | null>(null);
-  const [subiendoArchivo, setSubiendoArchivo] = useState(false);
-  const [errorArchivo, setErrorArchivo]       = useState("");
-
-  // Formulario
-  const [rucDni, setRucDni]         = useState("");
+  const [documento, setDocumento] = useState("");
+  const [celular, setCelular] = useState("");
   const [materiales, setMateriales] = useState("");
-  const [referencia, setReferencia] = useState("");
-  const [departamento, setDepartamento] = useState("");
-  const [provincia, setProvincia]   = useState("");
-  const [distrito, setDistrito]     = useState("");
 
-  // ── Ubicación ─────────────────────────────────────────────────────────────
+  const [archivoNombre, setArchivoNombre] = useState("");
+  const [archivoUrl, setArchivoUrl] = useState<string | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
 
-  const departamentoActivo =
-    ubicaciones.find((item) => item.nombre === departamento) ?? ubicaciones[0];
-  const provinciasDisponibles = departamentoActivo.provincias;
-  const provinciaActiva = provincia
-    ? provinciasDisponibles.find((item) => item.nombre === provincia) ??
-      provinciasDisponibles[0]
-    : undefined;
-  const distritosDisponibles = provinciaActiva?.distritos ?? [];
-  const ubicacionSeleccionada =
-    departamento && distrito && provincia
-      ? `${departamento}, ${provincia}, ${distrito}`
-      : "Seleccionar Ubicacion";
+  const [error, setError] = useState("");
 
-  const cambiarDepartamento = (event: ChangeEvent<HTMLSelectElement>) => {
-    const dep =
-      ubicaciones.find((item) => item.nombre === event.target.value) ?? ubicaciones[0];
-    const prov = dep.provincias[0];
-    setDepartamento(event.target.value);
-    setProvincia(prov.nombre);
-    setDistrito(prov.distritos[0].nombre);
+  /* Escape cierra y se bloquea el scroll de fondo */
+  useEffect(() => {
+    if (!abierto) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") cerrar();
+    };
+    const overflowPrevio = document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = overflowPrevio;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [abierto]);
+
+  const resetArchivo = () => {
+    setArchivoNombre("");
+    setArchivoUrl(null);
+    setSubiendo(false);
   };
 
-  const cambiarProvincia = (event: ChangeEvent<HTMLSelectElement>) => {
-    const prov =
-      provinciasDisponibles.find((item) => item.nombre === event.target.value) ??
-      provinciasDisponibles[0];
-    setProvincia(event.target.value);
-    setDistrito(prov.distritos[0]?.nombre ?? "");
+  const abrir = () => {
+    setError("");
+    resetArchivo();
+    setAbierto(true);
   };
 
-  // ── Archivo ───────────────────────────────────────────────────────────────
+  const cerrar = () => {
+    setAbierto(false);
+    setError("");
+    setDocumento("");
+    setCelular("");
+    setMateriales("");
+    resetArchivo();
+  };
 
-  const handleArchivo = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  /* Archivo */
+  const handleArchivo = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite volver a elegir el mismo archivo
     if (!file) return;
 
+    resetArchivo();
+
     if (!TIPOS_PERMITIDOS.includes(file.type)) {
-      setErrorArchivo("Solo se permiten imágenes, PDF, Excel o .txt");
-      setArchivoNombre("");
-      setArchivoUrl(null);
+      setError("Solo se permiten imágenes, PDF, Excel o .txt");
       return;
     }
     if (file.size > PESO_MAXIMO) {
-      setErrorArchivo("El archivo no puede superar los 10 MB");
-      setArchivoNombre("");
-      setArchivoUrl(null);
+      setError("El archivo no puede superar los 10 MB");
       return;
     }
 
-    setErrorArchivo("");
+    setError("");
     setArchivoNombre(file.name);
-    setArchivoUrl(null);
-    setSubiendoArchivo(true);
+    setSubiendo(true);
 
-    const url = await subirArchivoCotizacion(file);
-    setSubiendoArchivo(false);
+    const url = await subirArchivo(file);
+    setSubiendo(false);
 
     if (!url) {
-      setErrorArchivo("Error al subir el archivo. Intenta de nuevo.");
       setArchivoNombre("");
+      setError("Error al subir el archivo. Intenta de nuevo.");
       return;
     }
     setArchivoUrl(url);
   };
 
-  // ── Modal ─────────────────────────────────────────────────────────────────
+  /* WhatsApp */
+  const cotizar = () => {
+    if (!documento) return setError("Ingresa tu DNI o RUC.");
+    if (documento.length !== 8 && documento.length !== 11)
+      return setError("El DNI debe tener 8 dígitos y el RUC 11.");
+    if (celular.length !== 9) return setError("El celular debe tener 9 dígitos.");
+    if (subiendo) return setError("Espera a que termine de subir el archivo.");
+    if (!materiales.trim() && !archivoUrl)
+      return setError("Escribe tu lista de materiales o adjunta un archivo.");
 
-  const resetArchivo = () => {
-    setArchivoNombre("");
-    setArchivoUrl(null);
-    setErrorArchivo("");
-    setSubiendoArchivo(false);
-  };
-
-  const abrir = () => {
-    setMostrarModal(true);
-    setMostrarUbicacion(false);
-    resetArchivo();
-  };
-
-  const cerrar = () => {
-    setMostrarModal(false);
-    setMostrarUbicacion(false);
-    resetArchivo();
-    setRucDni("");
-    setMateriales("");
-    setReferencia("");
-    setDepartamento("");
-    setProvincia("");
-    setDistrito("");
-  };
-
-  // ── WhatsApp ──────────────────────────────────────────────────────────────
-
-  const cotizarPorWhatsapp = () => {
-    const documento = rucDni.trim();
-
-    if (!documento) {
-      window.alert("Ingresa tu DNI o RUC para continuar.");
-      return;
-    }
-    if (documento.length !== 8 && documento.length !== 11) {
-      window.alert("El DNI debe tener 8 dígitos y el RUC 11 dígitos.");
-      return;
-    }
-    if (subiendoArchivo) {
-      window.alert("Espera a que termine de subir el archivo.");
-      return;
-    }
+    setError("");
 
     const mensaje = [
       `DNI/RUC: ${documento}`,
-      `UBICACION: ${
-        departamento && provincia && distrito
-          ? `${departamento}-${provincia}-${distrito}`
-          : "-"
-      }`,
-      `REFERENCIA: ${referencia.trim() || "-"}`,
+      `CELULAR: ${celular}`,
       `MATERIALES: ${materiales.trim() || "-"}`,
-      archivoUrl
-        ? `ARCHIVO ADJUNTO: ${archivoUrl}`
-        : `LISTA ADJUNTADA: No adjuntó archivo`,
+      archivoUrl ? `ARCHIVO ADJUNTO: ${archivoUrl}` : "ARCHIVO ADJUNTO: No adjuntó archivo",
     ].join("\n\n");
 
     window.open(
-      `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(mensaje)}`,
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensaje)}`,
       "_blank",
       "noopener,noreferrer"
     );
   };
-
-  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -305,167 +188,103 @@ export function NavBarCotizar() {
         Cotizar
       </button>
 
-      {mostrarModal && (
-        <div className={style.quoteOverlay} onClick={cerrar}>
-          <div className={style.quoteModal} onClick={(e) => e.stopPropagation()}>
+      {abierto && (
+        <div className={style.overlay} onClick={cerrar}>
+          <div
+            className={style.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cotizar-titulo"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
-              className={style.quoteClose}
+              className={style.cerrar}
               onClick={cerrar}
-              aria-label="Cerrar cotizacion"
+              aria-label="Cerrar cotización"
             >
-              ×
+              <IconoCerrar className={style.cerrarIcono} />
             </button>
 
-            <div className={style.quoteHeader}>
-              <img
-                src={images.logoGorrion}
-                alt="Logo Gorrioncito"
-                className={style.quoteLogo}
-              />
-              <div className={style.nameCompany}>
-                <h3><b>Gorrioncito</b></h3>
-                <p>Dstribuidora y Ferreteria</p>
-              </div>
-            </div>
+            <div className={style.contenido}>
+              <h2 id="cotizar-titulo" className={style.banner}>
+                <span className={style.bannerTitulo}>Gorrioncito</span>
+                <span className={style.bannerSub}>DISTRIBUIDORA FERRETERA</span>
+              </h2>
 
-            <p className={style.quoteIntro}>
-              Completa tus datos y te ayudamos a cotizar más rápido.
-            </p>
+              <p className={style.intro}>Atención exclusiva a obras en ejecución</p>
 
-            <div className={style.inputWrap}>
-              <p>{icon.iconDni({ className: style.ubicacionIcon })}</p>
               <input
                 type="text"
+                className={style.campo}
                 placeholder="RUC/DNI"
-                className={style.quoteInput}
-                value={rucDni}
-                onChange={(e) => {
-                  const soloNumeros = e.target.value.replace(/\D/g, "").slice(0, 11);
-                  setRucDni(soloNumeros);
-                }}
                 inputMode="numeric"
                 maxLength={11}
+                value={documento}
+                onChange={(e) => setDocumento(soloNumeros(e.target.value, 11))}
               />
-            </div>
 
-            <button
-              type="button"
-              className={style.selectTrigger}
-              onClick={() => setMostrarUbicacion((prev) => !prev)}
-            >
-              {icon.iconUbicacion({ className: style.ubicacionIcon })}
-              <span>{ubicacionSeleccionada}</span>
-              {icon.iconArrowDown({ className: style.triggerArrow })}
-            </button>
+              <input
+                type="tel"
+                className={style.campo}
+                placeholder="Celular (9 dígitos)"
+                inputMode="numeric"
+                maxLength={9}
+                value={celular}
+                onChange={(e) => setCelular(soloNumeros(e.target.value, 9))}
+              />
 
-            {mostrarUbicacion && (
-              <div className={style.selectPanel}>
-                <div className={style.realSelectWrap}>
-                  <select
-                    className={style.realSelect}
-                    value={departamento}
-                    onChange={cambiarDepartamento}
-                  >
-                    <option value="">Departamento</option>
-                    {ubicaciones.map((item) => (
-                      <option key={item.nombre} value={item.nombre}>
-                        {item.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  {icon.iconArrowDown({ className: style.selectArrow })}
-                </div>
+              <textarea
+                className={style.textarea}
+                placeholder={
+                  "Escribe aquí lista de materiales detallando producto, cantidad, marca, entre otros...\n\nEjemplo:\nCables Celsa LSOH Negro 1000 metros\nTubería PVC Desagüe 500 Und"
+                }
+                value={materiales}
+                onChange={(e) => setMateriales(e.target.value)}
+              />
 
-                <div className={style.realSelectWrap}>
-                  <select
-                    className={style.realSelect}
-                    value={provincia}
-                    onChange={cambiarProvincia}
-                  >
-                    <option value="">Provincia</option>
-                    {provinciasDisponibles.map((item) => (
-                      <option key={item.nombre} value={item.nombre}>
-                        {item.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  {icon.iconArrowDown({ className: style.selectArrow })}
-                </div>
-
-                <div className={style.realSelectWrap}>
-                  <select
-                    className={style.realSelect}
-                    value={distrito}
-                    onChange={(e) => setDistrito(e.target.value)}
-                  >
-                    <option value="">Distrito</option>
-                    {distritosDisponibles.map((item) => (
-                      <option key={item.nombre} value={item.nombre}>
-                        {item.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  {icon.iconArrowDown({ className: style.selectArrow })}
-                </div>
-
-                <div className={style.referenciaBox}>
-                  <div className={style.referenciaTitulo}>Referencia</div>
-                  <textarea
-                    className={style.referenciaInput}
-                    placeholder="Escribe una referencia"
-                    value={referencia}
-                    onChange={(e) => setReferencia(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-
-            <textarea
-              className={style.quoteTextarea}
-              placeholder="Escribe aquí tu lista de materiales..."
-              value={materiales}
-              onChange={(e) => setMateriales(e.target.value)}
-            />
-
-            <label
-              className={style.uploadButton}
-              style={{
-                opacity: subiendoArchivo ? 0.6 : 1,
-                cursor: subiendoArchivo ? "not-allowed" : "pointer",
-              }}
-            >
+             <label className={`${style.adjuntar} ${subiendo ? style.adjuntarOcupado : ""}`}>
               <input
                 type="file"
                 className={style.fileInput}
                 accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.xls,.xlsx,.txt"
                 onChange={handleArchivo}
-                disabled={subiendoArchivo}
+                disabled={subiendo}
               />
-              {subiendoArchivo ? "Subiendo archivo..." : "Adjuntar lista (Opcional)"}
+              <IconoSubir className={style.adjuntarIcono} />
+              {subiendo ? (
+                "Subiendo archivo..."
+              ) : (
+                <>
+                  Adjuntar lista <span className={style.opcional}>(Opcional)</span>
+                </>
+              )}
             </label>
 
-            {errorArchivo && (
-              <p style={{ color: "#e53e3e", fontSize: "0.8rem", marginTop: "4px" }}>
-                ⚠ {errorArchivo}
-              </p>
-            )}
-            {archivoNombre && !errorArchivo && (
-              <p className={style.fileName}>
-                {subiendoArchivo ? `⏳ Subiendo: ${archivoNombre}` : `✓ ${archivoNombre}`}
-              </p>
-            )}
+              {archivoNombre && (
+                <p className={style.archivoNombre}>
+                  {subiendo ? "⏳" : "✓"} {archivoNombre}
+                </p>
+              )}
 
-            <button
-              type="button"
-              className={style.quoteSubmit}
-              onClick={cotizarPorWhatsapp}
-              disabled={subiendoArchivo}
-            >
-              <span>{icon.iconWhatsApp({ className: style.whatsappIcon })}</span>
-              <span>Cotizar</span>
-            </button>
-            <p className={style.quotePhone}>o comunicate con el +51 915 144 663</p>
+              {error && (
+                <p className={style.error} role="alert">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="button"
+                className={style.submit}
+                onClick={cotizar}
+                disabled={subiendo}
+              >
+                {icon.iconWhatsApp({ className: style.submitIcono })}
+                Cotizar
+              </button>
+
+              <p className={style.telefono}>o comunícate al {TELEFONO_VISIBLE}</p>
+            </div>
           </div>
         </div>
       )}

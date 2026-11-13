@@ -7,16 +7,16 @@
 }
 .company h3 {
 color: white;
-font-size: 26px;
+font-size: 14px;
 }
 .company p {
   color: #1478e0;
-  font-size: 16px;
-  margin-top: -10px ;
+  font-size: 14px;
+  margin-top: -7px ;
 }
 
 .logoCompany {
-  width: 60px;
+  width: 40px;
   height: auto;
   border-radius: 999px;
   object-fit: cover;

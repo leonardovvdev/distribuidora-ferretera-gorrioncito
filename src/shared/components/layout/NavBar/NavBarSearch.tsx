@@ -46,7 +46,7 @@ const manejarSubmitBusqueda = (event: FormEvent<HTMLFormElement>) => {
       </button>
       <input
         type="text"
-        placeholder="Buscar productos, categorías y marcas"
+        placeholder="Buscar productos"
         className={style.searchInput}
         value={busquedaNavbar}
         onChange={(e) => setBusquedaNavbar(e.target.value)}

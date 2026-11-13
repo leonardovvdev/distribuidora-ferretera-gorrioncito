@@ -1,81 +1,46 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import styles from "./seccion_1.module.css";
-import { supabase } from "../../../../lib/supabase";
-import {
-  listarMarcas,
-  getImagenMarca,
-} from "../../../../core/services/marca.service";
-
-import type { Marca } from "../../../../core/types"
-type MarcaItem = {
-  id: number;
-  nombre: string;
-  imagen: string;
-};
+import { useImagenCacheada } from "../../../../core/services/cache";
+import type { MarcaUI } from "../../services/ProductService";
 
 type Props = {
+  marcas: MarcaUI[];
   onMarcaSeleccionada?: (marca: string) => void;
 };
 
-function buildDisplayName(rawName: string | null, fallback: string) {
-  const source = rawName || fallback;
-  if (!source) return "Marca";
+/** Logo de una marca: usa la imagen guardada en el caché del navegador. */
+function LogoMarca({ marca }: { marca: MarcaUI }) {
+  const src = useImagenCacheada(marca.claveImagen, marca.imagen);
 
-  const baseName = source.replace(/\.[^.]+$/, "");
-  const normalized = baseName.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
-  if (!normalized) return "Marca";
-
-  return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
+  return src ? (
+    <img src={src} alt={marca.titulo} className={styles.logo} loading="lazy" />
+  ) : (
+    <div className={styles.logoPlaceholder}>{marca.titulo}</div>
+  );
 }
 
-export default function Seccion_1({ onMarcaSeleccionada }: Props) {
-  // quita useNavigate y useSearchParams, ya no los necesitas
+export default function Seccion_1({ marcas, onMarcaSeleccionada }: Props) {
   const [pausado, setPausado] = useState(false);
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [direccion, setDireccion] = useState<"normal" | "reverse">("normal");
-  const [marcas, setMarcas] = useState<MarcaItem[]>([]);
   const pistaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const cargarMarcas = async () => {
-      try {
-        const data = await listarMarcas();
-        const marcasMapeadas: MarcaItem[] = (data as Marca[]).map((marca) => ({
-          id: marca.marcaid,
-          nombre: buildDisplayName(marca.marcanombre, `Marca ${marca.marcaid}`),
-          imagen: marca.marcaimgnombrebucket
-          ? supabase.storage
-              .from("imagenes")
-              .getPublicUrl(`marca/${marca.marcaimgnombrebucket}`).data.publicUrl
-          : "",
-        }));
-        setMarcas(marcasMapeadas);
-      } catch (error) {
-        console.error("No se pudieron cargar las marcas:", error);
-        setMarcas([]);
-      }
-    };
-    cargarMarcas();
-  }, []);
-
-  // Reinicia la animación CSS cuando cambia la dirección
-  useEffect(() => {
     const pista = pistaRef.current;
     if (!pista) return;
-
-    // Forzar reflow para reiniciar la animación
     pista.style.animation = "none";
-    void pista.offsetHeight; // trigger reflow
+    void pista.offsetHeight;
     pista.style.animation = "";
     pista.style.animationDirection = direccion;
   }, [direccion]);
 
-  const marcasLoop = useMemo(() => {
-    if (marcas.length === 0) return [];
-    return [...marcas, ...marcas];
-  }, [marcas]);
+  const marcasLoop = useMemo(
+    () => (marcas.length === 0 ? [] : [...marcas, ...marcas]),
+    [marcas]
+  );
+
+  // ~6s por marca: la velocidad se mantiene constante sin importar cuántas haya
+  const duracion = `${Math.max(marcas.length * 6, 20)}s`;
 
   return (
     <section
@@ -89,7 +54,7 @@ export default function Seccion_1({ onMarcaSeleccionada }: Props) {
         onClick={() => setDireccion("reverse")}
         aria-label="Anterior"
       >
-        {"<"}
+        ‹
       </button>
 
       <div className={styles.carrusel}>
@@ -97,24 +62,26 @@ export default function Seccion_1({ onMarcaSeleccionada }: Props) {
           <div
             ref={pistaRef}
             className={`${styles.pista} ${pausado ? styles.pistaPausada : ""}`}
-            style={{ animationDirection: direccion }}
+            style={
+              {
+                animationDirection: direccion,
+                "--duracion": duracion,
+              } as CSSProperties
+            }
           >
             {marcasLoop.map((marca, index) => (
               <article
                 key={`${marca.id}-${index}`}
                 className={styles.logoCard}
-                onClick={() => onMarcaSeleccionada?.(marca.nombre)}
-                style={{ cursor: "pointer" }}
+                onClick={() => onMarcaSeleccionada?.(marca.titulo)}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && onMarcaSeleccionada?.(marca.titulo)
+                }
+                role="button"
+                tabIndex={0}
+                aria-hidden={index >= marcas.length}
               >
-                {marca.imagen ? (
-                  <img
-                    src={marca.imagen}
-                    alt={marca.nombre}
-                    className={styles.logo}
-                  />
-                ) : (
-                  <div className={styles.logoPlaceholder}>{marca.nombre}</div>
-                )}
+                <LogoMarca marca={marca} />
               </article>
             ))}
           </div>
@@ -129,7 +96,7 @@ export default function Seccion_1({ onMarcaSeleccionada }: Props) {
         onClick={() => setDireccion("normal")}
         aria-label="Siguiente"
       >
-        {">"}
+        ›
       </button>
     </section>
   );

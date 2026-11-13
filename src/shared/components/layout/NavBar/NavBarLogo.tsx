@@ -12,7 +12,7 @@ export const NavBarLogo = () => {
       />  
       <div className={style.nameCompany}>
         <h3><b>Gorrioncito</b></h3>
-        <p>Distribuidora y Ferreteria</p>
+        <p>Distribuidora Ferretera</p>
       </div>
     </Link>
   );

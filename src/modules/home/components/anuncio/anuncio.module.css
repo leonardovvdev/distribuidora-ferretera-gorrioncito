@@ -1,0 +1,218 @@
+/* ===== Botón "Ver video" ===== */
+.botonVideo {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 900;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 11px 20px 11px 16px;
+
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #0a1f44 0%, #1d4ed8 100%);
+  color: #ffffff;
+
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(10, 31, 68, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.botonVideo:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(29, 78, 216, 0.45);
+  filter: brightness(1.08);
+}
+
+.botonVideo:active {
+  transform: translateY(0);
+}
+
+.botonVideo:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.iconvideo {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+/* ===== Modal ===== */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(10, 31, 68, 0.75);
+  backdrop-filter: blur(4px);
+  animation: modalFondo 0.2s ease;
+}
+
+.modal {
+  width: fit-content;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e3e8f0;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  animation: modalEntrada 0.25s ease;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px 14px 20px;
+  background: linear-gradient(135deg, #0a1f44 0%, #1d4ed8 100%);
+  color: #ffffff;
+}
+
+.modalEtiqueta {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #93c5fd;
+}
+
+.modalTitulo {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.modalCerrar {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.modalCerrar:hover {
+  background: #ffffff;
+  color: #0a1f44;
+}
+
+.modalCerrar:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* El video vertical define el ancho del modal */
+.videoWrapper {
+  height: min(68vh, 640px);
+  aspect-ratio: 9 / 16;
+  max-width: 100%;
+  background: #000000;
+}
+
+.video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000000;
+}
+
+.modalFooter {
+  padding: 12px 16px;
+  background: #f4f6fa;
+  border-top: 1px solid #e3e8f0;
+}
+
+.modalBoton {
+  width: 100%;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 10px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.modalBoton:hover {
+  background: #0a1f44;
+  transform: translateY(-1px);
+}
+
+.modalBoton:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+.iconvideo{
+  width: 24px;
+}
+
+/* ===== Animaciones ===== */
+@keyframes modalFondo {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalEntrada {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modalOverlay,
+  .modal {
+    animation: none;
+  }
+}
+
+/* ===== Móvil ===== */
+@media (max-width: 720px) {
+  .modalOverlay {
+    padding: 12px;
+  }
+
+  .videoWrapper {
+    height: min(62vh, 560px);
+  }
+
+  .botonVideo {
+    bottom: 12px;
+    right: 12px;
+    padding: 10px 16px 10px 12px;
+    font-size: 0.8rem;
+  }
+}

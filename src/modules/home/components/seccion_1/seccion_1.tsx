@@ -1,179 +1,84 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import styles from "./seccion_1.module.css";
-import { supabase } from "../../../../lib/supabase";
-import {
-  DEFAULT_BANNER_IMAGE,
-  getField,
-  resolveImageSource,
-} from "../../../../shared/utils/catalogImage";
+import { banner as slides } from "../../../../assets/img/banner";
+import type { BannerLocal } from "../../../../assets/img/banner";
 
-type SlideItem = {
-  src: string;
-  link: string;
-  nombre: string;
-};
-
-const DEFAULT_BUCKET_NAME = "BannerFerreteria";
-const SLIDE_LINKS = ["/", "/product", "/nosotros", "/cart"];
 const SLIDE_INTERVAL_MS = 5000;
 
-const getStorageUrl = (bucketName: string | null, fileName: string | null) => {
-  if (!bucketName || !fileName) return null;
-  const { data } = supabase.storage.from(bucketName).getPublicUrl(fileName);
-  return data?.publicUrl ?? null;
+const esLinkExterno = (link: string) => /^https?:\/\//i.test(link);
+
+const renderImagen = (slide: BannerLocal) => (
+  <img src={slide.src} alt={slide.nombre} className={styles.imagen} />
+);
+
+const renderBanner = (slide: BannerLocal) => {
+  // Sin link válido: solo se muestra la imagen (evita <Link to={undefined}>).
+  if (!slide.link) return renderImagen(slide);
+
+  return esLinkExterno(slide.link) ? (
+    <a href={slide.link} target="_blank" rel="noopener noreferrer">
+      {renderImagen(slide)}
+    </a>
+  ) : (
+    <Link to={slide.link}>{renderImagen(slide)}</Link>
+  );
 };
 
 const Seccion_1 = () => {
-  const [slides, setSlides] = useState<SlideItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [cargando, setCargando] = useState(true);
-  const [errorCarga, setErrorCarga] = useState("");
+  const [pausado, setPausado] = useState(false);
 
+  const total = slides.length;
+  const multipleSlides = total > 1;
+
+  const nextSlide = useCallback(
+    () => setCurrentIndex((prev) => (prev + 1) % total),
+    [total],
+  );
+  const prevSlide = useCallback(
+    () => setCurrentIndex((prev) => (prev === 0 ? total - 1 : prev - 1)),
+    [total],
+  );
+
+  // Avance automático. Depende de currentIndex: al pulsar una flecha o un punto
+  // el temporizador se reinicia (antes podía saltar de slide justo después del clic).
+  // Se detiene con el mouse/foco encima y si el usuario pidió menos animación.
   useEffect(() => {
-    const cargarSlides = async () => {
-      setCargando(true);
-      setErrorCarga("");
+    if (!multipleSlides || pausado) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-      const { data: secciones, error: seccionesError } = await supabase
-        .from("seccion1")
-        .select("*");
-
-      if (seccionesError) {
-        console.error("Error al cargar secciones:", seccionesError.message);
-        setErrorCarga("No se pudieron cargar los banners.");
-        setCargando(false);
-        return;
-      }
-
-      const seccionesActivas = (secciones ?? [])
-        .filter((item) => Boolean(getField(item, "sc1UsarStorage", "sc1usarstorage")))
-        .sort((a, b) => {
-          const aId = getField<number>(a, "sc1Id", "sc1id") ?? 0;
-          const bId = getField<number>(b, "sc1Id", "sc1id") ?? 0;
-          return aId - bId;
-        });
-
-      const bannerIds = seccionesActivas
-        .map((item) => getField<number>(item, "bannerId", "bannerid"))
-        .filter(Boolean);
-
-      if (bannerIds.length === 0) {
-        setSlides([]);
-        setCargando(false);
-        return;
-      }
-
-      const { data: bannersData, error: bannersError } = await supabase
-        .from("banner")
-        .select("*");
-
-      if (bannersError) {
-        console.error("Error al cargar banners:", bannersError.message);
-        setErrorCarga("No se pudieron cargar los banners.");
-        setCargando(false);
-        return;
-      }
-
-      const bannerMap = new Map(
-        (bannersData ?? [])
-          .filter((banner) => {
-            const id = getField<number>(banner, "bannerId", "bannerid", "id");
-            return id !== null && bannerIds.includes(id);
-          })
-          .map((banner) => [
-            getField<number>(banner, "bannerId", "bannerid", "id"),
-            banner,
-          ])
-      );
-
-      const banners = seccionesActivas
-        .map((item, index) => {
-          const bannerId = getField<number>(item, "bannerId", "bannerid");
-          const banner = bannerMap.get(bannerId);
-          if (!banner) return null;
-
-          const usaStorage = Boolean(getField(item, "sc1UsarStorage", "sc1usarstorage"));
-          const bucketName =
-            getField<string>(banner, "bannerBucket", "bannerbucket", "bucket", "bucketName") ||
-            DEFAULT_BUCKET_NAME;
-          const fileName = getField<string>(banner, "bannerBucketNombre", "bannerbucketnombre");
-          const nombre = getField<string>(banner, "bannerNombre", "bannernombre");
-          const bannerLink = getField<string>(banner, "bannerLink", "bannerlink");
-
-          const src = resolveImageSource({
-            directUrl: usaStorage ? null : bannerLink,
-            bucketName,
-            fileName,
-            defaultImage: DEFAULT_BANNER_IMAGE,
-            getStorageUrl,
-          });
-
-          return {
-            src,
-            link: bannerLink || SLIDE_LINKS[index % SLIDE_LINKS.length],
-            nombre: nombre || `Banner ${index + 1}`,
-          };
-        })
-        .filter((item): item is SlideItem => Boolean(item));
-
-      setSlides(banners);
-      setCurrentIndex(0);
-      setCargando(false);
-    };
-
-    cargarSlides();
-  }, []);
-
-  const nextSlide = () => setCurrentIndex((prev) => (prev + 1) % slides.length);
-  const prevSlide = () => setCurrentIndex((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-
-  useEffect(() => {
-    if (slides.length <= 1) return;
-    const interval = setInterval(nextSlide, SLIDE_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [slides.length]);
+    const timeout = setTimeout(nextSlide, SLIDE_INTERVAL_MS);
+    return () => clearTimeout(timeout);
+  }, [currentIndex, multipleSlides, pausado, nextSlide]);
 
   const slideActivo = slides[currentIndex];
-  const multipleSlides = slides.length > 1;
 
-  const renderImagen = (slide: SlideItem) =>
-    slide.src ? (
-      <img src={slide.src} alt={slide.nombre} className={styles.imagen} />
-    ) : (
-      <div className={styles.placeholder}>{slide.nombre}</div>
-    );
-
-  const renderBanner = (slide: SlideItem) =>
-    /^https?:\/\//i.test(slide.link) ? (
-      <a href={slide.link} target="_blank" rel="noreferrer">
-        {renderImagen(slide)}
-      </a>
-    ) : (
-      <Link to={slide.link}>{renderImagen(slide)}</Link>
-    );
-
-  if (cargando) {
+  if (!slideActivo) {
     return (
       <section className={styles.seccion}>
-        <div className={styles.estado}>Cargando banners...</div>
-      </section>
-    );
-  }
-
-  if (!slideActivo || slides.length === 0) {
-    return (
-      <section className={styles.seccion}>
-        <div className={styles.estado}>{errorCarga || "No hay banners disponibles."}</div>
+        <div className={styles.estado}>No hay banners disponibles.</div>
       </section>
     );
   }
 
   return (
-    <section className={styles.seccion}>
-
+    <section
+      className={styles.seccion}
+      aria-roledescription="carrusel"
+      aria-label="Banners"
+      onMouseEnter={() => setPausado(true)}
+      onMouseLeave={() => setPausado(false)}
+      onFocus={() => setPausado(true)}
+      onBlur={() => setPausado(false)}
+    >
       {multipleSlides && (
-        <button className={styles.arrowLeft} onClick={prevSlide} aria-label="Anterior">
+        <button
+          type="button"
+          className={styles.arrowLeft}
+          onClick={prevSlide}
+          aria-label="Banner anterior"
+        >
           ❮
         </button>
       )}
@@ -181,23 +86,30 @@ const Seccion_1 = () => {
       {renderBanner(slideActivo)}
 
       {multipleSlides && (
-        <button className={styles.arrowRight} onClick={nextSlide} aria-label="Siguiente">
+        <button
+          type="button"
+          className={styles.arrowRight}
+          onClick={nextSlide}
+          aria-label="Banner siguiente"
+        >
           ❯
         </button>
       )}
 
       {multipleSlides && (
         <div className={styles.indicators}>
-          {slides.map((_, index) => (
-            <div
-              key={index}
+          {slides.map((slide, index) => (
+            <button
+              type="button"
+              key={slide.nombre ?? index}
               className={`${styles.dot} ${index === currentIndex ? styles.active : ""}`}
               onClick={() => setCurrentIndex(index)}
+              aria-label={`Ir al banner ${index + 1}`}
+              aria-current={index === currentIndex}
             />
           ))}
         </div>
       )}
-
     </section>
   );
 };

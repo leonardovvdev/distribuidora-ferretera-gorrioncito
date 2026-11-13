@@ -1,24 +1,44 @@
 .seccion {
-  padding-top: 20px;
-  margin-top: 10px;
-  padding-bottom: 20px;
-  margin-bottom: 10px;
+  --azul: #1d4ed8;
+  --azul-marino: #0a1f44;
+  --borde: #e3e8f0;
+  --fondo-suave: #f4f6fa;
+
+  margin: 12px 0;
+  padding: 16px 0;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   user-select: none;
 }
 
+/* Carrusel con bordes que se desvanecen */
 .carrusel {
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 48px,
+    #000 calc(100% - 48px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 48px,
+    #000 calc(100% - 48px),
+    transparent 100%
+  );
 }
 
 .pista {
   display: flex;
-  gap: 18px;
+  gap: 16px;
   width: max-content;
-  animation: deslizar 1958s linear infinite;
+  padding: 6px 0; /* espacio para la sombra */
+  /* La duración se controla desde el TSX con --duracion */
+  animation: deslizar var(--duracion, 40s) linear infinite;
   will-change: transform;
 }
 
@@ -27,96 +47,116 @@
 }
 
 .logoCard {
-  flex: 0 0 340px;
-  min-height: 78px;
+  flex: 0 0 220px;
+  height: 84px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 18px;
-  border-radius: 24px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7f7fa 100%);
-  box-shadow: 0 12px 24px rgba(17, 17, 17, 0.1);
-  animation: entrada 0.45s ease;
+  padding: 12px 20px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid var(--borde);
+  box-shadow: 0 1px 2px rgba(10, 31, 68, 0.04);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.logoCard:hover {
+  border-color: var(--azul);
+  box-shadow: 0 8px 20px rgba(29, 78, 216, 0.14);
+  transform: translateY(-2px);
 }
 
 .logo {
   width: 100%;
-  max-width: 126px;
+  max-width: 130px;
+  max-height: 56px;
   object-fit: contain;
-  transition: transform 0.25s ease;
+  filter: grayscale(100%);
+  opacity: 0.7;
+  transition: filter 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+}
+
+.logoCard:hover .logo {
+  filter: grayscale(0);
+  opacity: 1;
+  transform: scale(1.05);
 }
 
 .logoPlaceholder {
   width: 100%;
-  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: #697593;
-  font-size: 0.82rem;
-  line-height: 1.4;
-  font-weight: 800;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.logoCard:hover .logo {
-  transform: scale(1.05);
-}
-
 .vacio {
-  min-height: 88px;
+  min-height: 84px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 24px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7f7fa 100%);
-  color: #687592;
-  font-weight: 700;
+  border-radius: 14px;
+  background: var(--fondo-suave);
+  border: 1px dashed var(--borde);
+  color: #64748b;
+  font-weight: 600;
 }
 
+/* Flechas */
 .flecha {
-  width: 34px;
-  height: 34px;
-  border: none;
-  border-radius: 999px;
-  background: #efefef;
-  color: #1f1f1f;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--borde);
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--azul-marino);
   font-size: 18px;
   font-weight: 700;
+  line-height: 1;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(17, 17, 17, 0.14);
+  box-shadow: 0 2px 6px rgba(10, 31, 68, 0.08);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 .flecha:hover {
-  background: #dcdcdc;
+  background: var(--azul);
+  border-color: var(--azul);
+  color: #ffffff;
 }
 
-@keyframes entrada {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+.flecha:focus-visible,
+.logoCard:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
 }
 
 @keyframes deslizar {
   from {
     transform: translateX(0);
   }
-
   to {
-    transform: translateX(calc(-50% - 9px));
+    transform: translateX(calc(-50% - 8px)); /* la mitad del gap (16px) */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pista {
+    animation: none;
   }
 }
 
 @media (max-width: 1100px) {
   .logoCard {
-    flex-basis: 280px;
+    flex-basis: 190px;
   }
 }
 
@@ -124,11 +164,10 @@
   .seccion {
     grid-template-columns: 1fr;
   }
-
   .logoCard {
-    flex-basis: 220px;
+    flex-basis: 150px;
+    height: 72px;
   }
-
   .flecha {
     display: none;
   }

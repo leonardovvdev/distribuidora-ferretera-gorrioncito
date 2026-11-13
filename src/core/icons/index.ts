@@ -7,6 +7,7 @@ import { iconCarrito } from "./carrito";
 import { iconLupa } from "./lupa";
 import { iconDni } from "./dni";
 import { iconArrowDown } from "./arrowdown"
+import { iconVideo } from "./video";
 // import { iconEnviar } from "./enviar";
 
 export const icon = {
@@ -20,4 +21,5 @@ export const icon = {
   iconDni,
   iconArrowDown,
   // iconEnviar
+  iconVideo,
 };

@@ -14,7 +14,6 @@ type BloqueCatalogo = {
   titulo: string;
   descripcion: string;
   keywords: string[];
-  etiqueta: string;
 };
 
 type CategoriaBucket = BloqueCatalogo & {
@@ -23,15 +22,13 @@ type CategoriaBucket = BloqueCatalogo & {
 
 const bloquesBase: BloqueCatalogo[] = [
   {
-    titulo: "Lineas operativas",
-    descripcion: "Categorias frecuentes para abastecimiento continuo y atencion comercial.",
-    etiqueta: "Operacion",
+    titulo: "Líneas operativas",
+    descripcion: "Categorías de uso frecuente para abastecimiento continuo.",
     keywords: ["embols", "accesor", "gasfiter", "griferi", "sanitari", "valvula", "bronce"],
   },
   {
     titulo: "Seguridad personal",
-    descripcion: "Equipos y categorias pensadas para proteccion y trabajo seguro.",
-    etiqueta: "Proteccion",
+    descripcion: "Equipos de protección para trabajar con seguridad.",
     keywords: [
       "proteccion",
       "guante",
@@ -47,9 +44,8 @@ const bloquesBase: BloqueCatalogo[] = [
     ],
   },
   {
-    titulo: "Infraestructura tecnica",
-    descripcion: "Familias ligadas a obra, redes, instalaciones y operacion tecnica.",
-    etiqueta: "Infraestructura",
+    titulo: "Infraestructura técnica",
+    descripcion: "Materiales para obra, redes e instalaciones.",
     keywords: [
       "emergencia",
       "absorb",
@@ -66,8 +62,7 @@ const bloquesBase: BloqueCatalogo[] = [
   },
   {
     titulo: "Herramientas y soporte",
-    descripcion: "Categorias utiles para montaje, mantenimiento y trabajo en campo.",
-    etiqueta: "Soporte",
+    descripcion: "Herramientas para montaje, mantenimiento y trabajo en campo.",
     keywords: ["herramienta", "manual", "electric", "neumatic", "taladro", "disco"],
   },
 ];
@@ -136,7 +131,7 @@ export default function Seccion_4() {
 
             return {
               id: Number(id),
-              nombre: buildDisplayName(nombre, imagenNombre, `Categoria ${id}`),
+              nombre: buildDisplayName(nombre, imagenNombre, `Categoría ${id}`),
               total: conteo.get(Number(id)) ?? 0,
             };
           })
@@ -196,62 +191,43 @@ export default function Seccion_4() {
   return (
     <section className={styles.seccion}>
       <div className={styles.contenido}>
-        <h2 className={styles.titulo}>
-          Todo lo necesario para que tu proyecto avance con respaldo comercial
-        </h2>
-        <p className={styles.descripcion}>
-          Estos bloques ahora se relacionan con las categorias reales del catalogo. Si
-          buscas guantes, proteccion o herramientas similares, cada acceso te lleva al
-          filtro correspondiente.
-        </p>
+        <header className={styles.cabecera}>
+          <h2 className={styles.titulo}>
+            Todo lo necesario para que tu proyecto avance
+          </h2>
+          <p className={styles.descripcion}>
+            Explora el catálogo por tipo de trabajo. Cada categoría te lleva directo a sus
+            productos.
+          </p>
+        </header>
 
         <div className={styles.grid}>
           {bloques.map((bloque) => (
-            <article key={bloque.titulo} className={styles.card}>
-              <div className={styles.cardHeader}>
-                <div className={styles.cardTop}>
-                  <span className={styles.badge}>{bloque.etiqueta}</span>
-                  <span className={styles.resumenCantidad}>
-                    {bloque.items.length} categorias
-                  </span>
-                </div>
-                <h3>{bloque.titulo}</h3>
-                <p>{bloque.descripcion}</p>
-              </div>
+            <article key={bloque.titulo} className={styles.bloque}>
+              <h3>{bloque.titulo}</h3>
+              <p className={styles.bloqueDescripcion}>{bloque.descripcion}</p>
 
-              <div className={styles.cardBody}>
-                {bloque.items.length > 0 ? (
-                  <ul className={styles.lista}>
-                    {bloque.items.map((item) => (
-                      <li key={item.id}>
-                        <Link
-                          to={`/product?categoria=${encodeURIComponent(item.nombre)}`}
-                          className={styles.itemLink}
-                        >
-                          <span className={styles.itemInfo}>
-                            <span className={styles.itemPunto} aria-hidden="true" />
-                            <span className={styles.itemNombre}>{item.nombre}</span>
-                          </span>
-                          
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className={styles.vacioBloque}>
-                    {cargando ? "Cargando categorias..." : "No hay categorias relacionadas."}
-                  </div>
-                )}
-
-                {bloque.items[0] ? (
-                  <Link
-                    to={`/product?categoria=${encodeURIComponent(bloque.items[0].nombre)}`}
-                    className={styles.cta}
-                  >
-                    Explorar bloque
-                  </Link>
-                ) : null}
-              </div>
+              {bloque.items.length > 0 ? (
+                <ul className={styles.lista}>
+                  {bloque.items.map((item) => (
+                    <li key={item.id}>
+                      <Link
+                        to={`/product?categoria=${encodeURIComponent(item.nombre)}`}
+                        className={styles.itemLink}
+                      >
+                        <span className={styles.itemNombre}>{item.nombre}</span>
+                        {item.total > 0 && (
+                          <span className={styles.itemTotal}>{item.total}</span>
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={styles.vacio}>
+                  {cargando ? "Cargando categorías…" : "No hay categorías relacionadas."}
+                </p>
+              )}
             </article>
           ))}
         </div>

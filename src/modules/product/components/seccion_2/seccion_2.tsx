@@ -1,121 +1,65 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import styles from "./seccion_2.module.css";
 import { icon } from "../../../../core/icons";
-import { listarCategorias } from "../../../../core/services/categoria.service";
-import { listarMarcas } from "../../../../core/services/marca.service";
-import type { Categoria, Marca } from "../../../../core/types";
-
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+import type { CategoriaUI, MarcaUI } from "../../services/ProductService";
 
 type Props = {
+  categorias: CategoriaUI[];
+  marcas: MarcaUI[];
   categoriasSeleccionadas: string[];
-  marcasSeleccionadas:     string[];
+  marcasSeleccionadas: string[];
   onCategoriaSeleccionada: (categoria: string) => void;
-  onMarcaSeleccionada:     (marca: string) => void;
-  enDrawer?:               boolean;   // ← nueva prop
+  onMarcaSeleccionada: (marca: string) => void;
+  enDrawer?: boolean;
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const normalizarNombre = (nombre: string | undefined | null, fallback: string): string =>
-  nombre
-    ?.replace(/\.[^.]+$/, "")
-    ?.replace(/[_-]+/g, " ")
-    ?.trim()
-    ?.replace(/\b\w/g, (c) => c.toUpperCase())
-    ?? fallback;
-
-// ─── Componente ───────────────────────────────────────────────────────────────
+type Tab = "categorias" | "marcas";
 
 export default function Seccion_2({
+  categorias,
+  marcas,
   categoriasSeleccionadas,
   marcasSeleccionadas,
   onCategoriaSeleccionada,
   onMarcaSeleccionada,
   enDrawer = false,
 }: Props) {
-  const [tabActiva,  setTabActiva]  = useState<"categorias" | "marcas">("categorias");
-  const [busqueda,   setBusqueda]   = useState("");
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [marcas,     setMarcas]     = useState<Marca[]>([]);
+  const [tabActiva, setTabActiva] = useState<Tab>("categorias");
+  const [busqueda, setBusqueda] = useState("");
 
-  useEffect(() => {
-    listarCategorias().then((data) => setCategorias(data as Categoria[]));
-    listarMarcas().then((data)     => setMarcas(data as Marca[]));
-  }, []);
+  const esCategorias = tabActiva === "categorias";
+    const items: { id: number; titulo: string }[] = esCategorias ? categorias : marcas;
+  const seleccionados = esCategorias ? categoriasSeleccionadas : marcasSeleccionadas;
+  const onSeleccionar = esCategorias ? onCategoriaSeleccionada : onMarcaSeleccionada;
 
-  const handleCambiarTab = (tab: "categorias" | "marcas") => {
+  const handleCambiarTab = (tab: Tab) => {
     setTabActiva(tab);
     setBusqueda("");
   };
 
-  const categoriasFiltradas = useMemo(() => {
+  const itemsFiltrados = useMemo(() => {
     const q = busqueda.toLowerCase().trim();
-    return categorias.filter((item) =>
-      normalizarNombre(item.ctgranombre, "").toLowerCase().includes(q)
-    );
-  }, [busqueda, categorias]);
-
-  const marcasFiltradas = useMemo(() => {
-    const q = busqueda.toLowerCase().trim();
-    return marcas.filter((item) =>
-      normalizarNombre(item.marcanombre, "").toLowerCase().includes(q)
-    );
-  }, [busqueda, marcas]);
-
-  const renderItems = () => {
-    if (tabActiva === "categorias") {
-      if (categoriasFiltradas.length === 0 && busqueda.trim())
-        return <p className={styles.sinResultados}>Sin resultados para "{busqueda}"</p>;
-
-      return categoriasFiltradas.map((categoria) => {
-        const nombre = normalizarNombre(categoria.ctgranombre, "Sin categoría");
-        return (
-          <button
-            key={categoria.ctgraid}
-            type="button"
-            className={`${styles.item} ${categoriasSeleccionadas.includes(nombre) ? styles.itemActivo : ""}`}
-            onClick={() => onCategoriaSeleccionada(nombre)}
-          >
-            {nombre}
-          </button>
-        );
-      });
-    }
-
-    if (marcasFiltradas.length === 0 && busqueda.trim())
-      return <p className={styles.sinResultados}>Sin resultados para "{busqueda}"</p>;
-
-    return marcasFiltradas.map((marca) => {
-      const nombre = normalizarNombre(marca.marcanombre, "Sin marca");
-      return (
-        <button
-          key={marca.marcaid}
-          type="button"
-          className={`${styles.item} ${marcasSeleccionadas.includes(nombre) ? styles.itemActivo : ""}`}
-          onClick={() => onMarcaSeleccionada(nombre)}
-        >
-          {nombre}
-        </button>
-      );
-    });
-  };
+    return items.filter((item) => item.titulo.toLowerCase().includes(q));
+  }, [busqueda, items]);
 
   return (
-     <aside className={`${styles.seccion} ${enDrawer ? styles.seccionDrawer : ""}`}>
-
+    <aside className={`${styles.seccion} ${enDrawer ? styles.seccionDrawer : ""}`}>
       {/* ── Tabs ── */}
-      <div className={styles.tabs}>
+      <div className={styles.tabs} role="tablist">
         <button
           type="button"
-          className={`${styles.tab} ${tabActiva === "categorias" ? styles.tabActiva : ""}`}
+          role="tab"
+          aria-selected={esCategorias}
+          className={`${styles.tab} ${esCategorias ? styles.tabActiva : ""}`}
           onClick={() => handleCambiarTab("categorias")}
         >
           Categorías
         </button>
         <button
           type="button"
-          className={`${styles.tab} ${tabActiva === "marcas" ? styles.tabActiva : ""}`}
+          role="tab"
+          aria-selected={!esCategorias}
+          className={`${styles.tab} ${!esCategorias ? styles.tabActiva : ""}`}
           onClick={() => handleCambiarTab("marcas")}
         >
           Marcas
@@ -127,23 +71,31 @@ export default function Seccion_2({
         {icon.iconLupa({ className: styles.lupaIcon })}
         <input
           type="text"
-          placeholder={tabActiva === "categorias" ? "Buscar categoría" : "Buscar marca"}
+          placeholder={esCategorias ? "Buscar en Categorías" : "Buscar en Marcas"}
           className={styles.searchInput}
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
       </div>
 
-      {/* ── Lista ── */}
+      {/* ── Lista con checkboxes ── */}
       <div className={styles.lista}>
-        <h3 className={styles.titulo}>
-          {tabActiva === "categorias" ? "Categorías" : "Marcas"}
-        </h3>
-        <div className={styles.listaItems}>
-          {renderItems()}
-        </div>
+        {itemsFiltrados.length === 0 ? (
+          <p className={styles.sinResultados}>Sin resultados para "{busqueda}"</p>
+        ) : (
+          itemsFiltrados.map((item) => (
+            <label key={item.id} className={styles.item}>
+              <input
+                type="checkbox"
+                className={styles.checkbox}
+                checked={seleccionados.includes(item.titulo)}
+                onChange={() => onSeleccionar(item.titulo)}
+              />
+              <span className={styles.itemTexto}>{item.titulo}</span>
+            </label>
+          ))
+        )}
       </div>
-
     </aside>
   );
 }

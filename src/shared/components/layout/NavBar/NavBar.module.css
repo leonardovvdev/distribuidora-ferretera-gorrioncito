@@ -1,124 +1,231 @@
+/* ============================================================
+   NavBar.module.css
+   Escritorio → ≥1180px (completo)
+   Compacto   → 1024px – 1179px (sin íconos en enlaces)
+   Móvil      → ≤1023px (buscador en 2ª fila + drawer)
+   ============================================================ */
+
+/* ─── Contenedor ─────────────────────────────────────────── */
 .wrapper {
+  --nav-alto: 55px;
+  --nav-fondo: #071a45;
+  --nav-azul: #1a6df0;
+  --nav-azul-claro: #4d94ff;
+  --nav-linea: rgba(255, 255, 255, 0.25);
+
   width: 100%;
-  height: 70px;
+  height: var(--nav-alto);
 }
 
 .navbar {
   position: fixed;
   inset: 0 0 auto 0;
-
+  z-index: 100;
+  box-sizing: border-box;
   width: 100%;
-  height: 70px;
+  height: var(--nav-alto);
 
   display: grid;
-  grid-template-columns: auto minmax(250px, 1fr) auto auto;
+  grid-template-columns: auto minmax(260px, 1fr) auto auto;
   align-items: center;
-  gap: 16px;
+  column-gap: 28px;
+  padding: 0 28px;
 
-  padding: 0 16px;
+  background: var(--nav-fondo);
 
-  background: #0b1e57;
-  z-index: 100;
+  font-family: Sora, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
 
-/* desktop */
-
+/* ─── Logo (con divisor vertical) ────────────────────────── */
 .logoRow {
-  display: contents;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding-right: 28px;
+  border-right: 1px solid var(--nav-linea);
 }
 
+/* en escritorio, el buscador entra directo en la grilla */
 .searchRow {
   display: contents;
 }
 
+/* ─── Enlaces ────────────────────────────────────────────── */
 .menuDesktop {
   display: flex;
-  gap: 8px;
-}
-
-.actionsDesktop {
-  display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
 }
 
 .link {
-  color: white;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
   text-decoration: none;
-  font-weight: bold;
-  margin-top: 6px;
-  margin-left: 14px;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* indicador de la página actual */
+.linkActivo::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--nav-azul-claro);
+}
+
+.linkIcono {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* ─── Acciones: Cotizar + carrito ────────────────────────── */
+.actionsDesktop {
+  display: flex;
+  align-items: center;
+  gap: 18px;
 }
 
 .cartButton {
-  position: relative;
-  width: 48px;
-  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 44px;
+  padding: 0 6px 0 22px;
+  border: 0;                                   /* ← CAMBIO: reset de button */
+  border-left: 1px solid var(--nav-linea);
+  border-radius: 0;
+  background: none;                            /* ← CAMBIO */
+  font: inherit;                               /* ← CAMBIO */
+  color: #ffffff;
+  cursor: pointer;                             /* ← CAMBIO */
+}
+
+.cartIconWrap {
+  position: relative;
+  display: inline-flex;
 }
 
 .carritoIcon {
   width: 28px;
-  color: #fff;
+  height: 28px;
+  color: #ffffff;
 }
 
 .cartCount {
   position: absolute;
-  top: -2px;
-  right: -4px;
-
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-
-  background: #2f5acf;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 18px;
-  text-align: center;
-
+  top: -8px;
+  right: -10px;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 2px solid var(--nav-fondo);
   border-radius: 999px;
+  background: var(--nav-azul);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
   pointer-events: none;
 }
 
-/* hidden desktop */
-
+/* elementos que solo existen en móvil */
+.cartMobile,
 .hamburger,
 .drawer,
 .overlay {
   display: none;
 }
 
+/* ─── Foco visible (teclado) ─────────────────────────────── */
+.link:focus-visible,
+.cartButton:focus-visible,
+.cartMobile:focus-visible,
+.cartButtonMobile:focus-visible,               /* ← CAMBIO */
+.hamburger:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
 
-/* ─── MOBILE ─────────────────────────────────────────── */
+/* el botón del drawer tiene fondo blanco: foco oscuro */
+.cartButtonMobile:focus-visible {              /* ← CAMBIO */
+  outline-color: #0b1e57;
+}
 
-@media (max-width: 767px) {
+/* ============================================================
+   COMPACTO — 1024px a 1179px
+   ============================================================ */
+@media (max-width: 1179px) {
+  .navbar {
+    column-gap: 16px;
+    padding: 0 18px;
+  }
 
+  .logoRow {
+    padding-right: 16px;
+  }
+
+  .linkIcono {
+    display: none;
+  }
+
+  .link {
+    padding: 10px 8px;
+  }
+
+  .actionsDesktop {
+    gap: 12px;
+  }
+
+  .cartButton {
+    padding-left: 14px;
+  }
+}
+
+/* ============================================================
+   MÓVIL / TABLET — ≤1023px
+   ============================================================ */
+@media (max-width: 1023px) {
   .wrapper {
-    height: 130px;
+    --nav-alto: 132px;
   }
 
   .navbar {
     height: auto;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 12px;
     padding: 12px 16px;
   }
 
   .logoRow {
-    display: flex;
-    align-items: center;
+    height: auto;
+    padding-right: 0;
+    border-right: none;
   }
 
   .searchRow {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
+    gap: 8px;
   }
 
   .menuDesktop,
@@ -126,63 +233,101 @@
     display: none;
   }
 
+  .cartMobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;                                /* ← CAMBIO */
+    border: 0;                                 /* ← CAMBIO */
+    background: none;                          /* ← CAMBIO */
+    color: #ffffff;
+    cursor: pointer;                           /* ← CAMBIO */
+  }
+
+  .cartMobile .cartCount {
+    top: -6px;
+    right: -8px;
+  }
+
   .hamburger {
     display: flex;
     align-items: center;
     justify-content: center;
-
     width: 44px;
     height: 44px;
-
+    padding: 0;
     border: none;
     border-radius: 10px;
-
-    background: #1951f7;
-    color: white;
-
-    font-size: 1.5rem;
+    background: var(--nav-azul);
+    color: #ffffff;
     cursor: pointer;
+    transition: background-color 0.2s ease;
   }
 
+  .hamburger:hover {
+    background: #1559c9;
+  }
+
+  .hamburgerIcono {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* ─── Overlay ─── */
   .overlay {
     display: block;
-
     position: fixed;
     inset: 0;
-
-    background: rgba(0, 0, 0, 0.4);
-
     z-index: 998;
+    background: rgba(0, 0, 0, 0.45);
+    animation: aparecer 0.2s ease;
   }
 
+  /* ─── Drawer ─── */
   .drawer {
     display: flex;
     flex-direction: column;
-    gap: 0;
-
     position: fixed;
     top: 0;
     left: 0;
-
-    width: 280px;
-    height: 100vh;
-
-    padding: 0;
-
-    background: white;
-
     z-index: 999;
-
-    box-shadow: 6px 0 20px rgba(0, 0, 0, 0.18);
+    width: min(86vw, 300px);
+    height: 100vh;
+    height: 100dvh;
     overflow-y: auto;
+    background: #ffffff;
+    box-shadow: 6px 0 20px rgba(0, 0, 0, 0.18);
+    animation: entrarDrawer 0.22s ease;
   }
 
-  /* Logo en el drawer */
+  .drawerCerrar {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: #0b1e57;
+    cursor: pointer;
+  }
+
+  .drawerCerrar:hover {
+    background: #f0f3ff;
+  }
+
   .drawerLogo {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px 20px 20px;
+    padding: 28px 56px 20px 20px;
     border-bottom: 1px solid #e8eaf0;
   }
 
@@ -192,66 +337,87 @@
     object-fit: contain;
   }
 
-  /* Links del drawer con estilo uniforme */
   .drawerLink {
     display: flex;
     align-items: center;
-
     padding: 16px 20px;
-
-    color: #0b1e57;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 1rem;
-
     border-bottom: 1px solid #e8eaf0;
-
-    transition: background 0.15s;
+    color: #0b1e57;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
   }
 
+  .drawerLink:hover,
   .drawerLink:active {
     background: #f0f3ff;
   }
 
-  /* Fila de categorías con arrow */
-  .drawerCategoriaRow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
+  .drawerCotizar {
     padding: 16px 20px;
-
     border-bottom: 1px solid #e8eaf0;
-  }
-
-  .drawerCategoriaRow > * {
-    color: #0b1e57;
-    font-weight: 700;
-    font-size: 1rem;
-    text-decoration: none;
-  }
-
-  .drawerArrow {
-    width: 18px;
-    height: 18px;
-    color: #0b1e57;
-    flex-shrink: 0;
   }
 
   .cartButtonMobile {
     display: flex;
     align-items: center;
     gap: 10px;
-
+    width: 100%;                               /* ← CAMBIO */
+    box-sizing: border-box;                    /* ← CAMBIO */
     padding: 16px 20px;
-
+    border: 0;                                 /* ← CAMBIO */
+    background: none;                          /* ← CAMBIO */
+    font: inherit;                             /* ← CAMBIO */
+    font-size: 1rem;                           /* ← CAMBIO */
+    text-align: left;                          /* ← CAMBIO */
     color: #0b1e57;
-    text-decoration: none;
     font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;                           /* ← CAMBIO */
+    transition: background-color 0.15s ease;   /* ← CAMBIO */
+  }
+
+  .cartButtonMobile:hover,                     /* ← CAMBIO */
+  .cartButtonMobile:active {
+    background: #f0f3ff;
   }
 
   .drawer .carritoIcon {
+    width: 24px;
+    height: 24px;
     color: #0b1e57;
   }
+}
 
-} /* ← cierre del @media */
+/* ─── Animaciones ────────────────────────────────────────── */
+@keyframes aparecer {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes entrarDrawer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .drawer {
+    animation: none;
+  }
+
+  .link,
+  .hamburger,
+  .cartButtonMobile {                          /* ← CAMBIO */
+    transition: none;
+  }
+}

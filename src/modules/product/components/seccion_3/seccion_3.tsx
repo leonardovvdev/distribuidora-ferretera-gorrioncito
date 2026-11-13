@@ -1,353 +1,255 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import styles from "./seccion_3.module.css";
 import { icon } from "../../../../core/icons";
-import {
-  getImagenProducto,
-  listarProductos,
-  listarProductosPorCategoria,
-  listarProductosPorMarca,
-  listarProductosFiltrados 
-} from "../../../../core/services/producto.service";
-import type { Producto } from "../../../../core/types";
-
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+import { useImagenCacheada } from "../../../../core/services/cache";
+import type { ProductoUI } from "../../services/ProductService";
 
 type Props = {
+  productos: ProductoUI[];
+  cargando?: boolean;
+  error?: string | null;
   categoriasSeleccionadas?: string[];
-  marcasSeleccionadas?:     string[];
-  busquedaGeneral?:         string;
-  onEliminarCategoria?:     (categoria: string) => void;
-  onEliminarMarca?:         (marca: string) => void;
-  productosVisibles?:       number;
-  onCargarMas?:             () => void;
+  marcasSeleccionadas?: string[];
+  busquedaGeneral?: string;
+  onEliminarCategoria?: (categoria: string) => void;
+  onEliminarMarca?: (marca: string) => void;
+  onLimpiarFiltros?: () => void;
+  productosVisibles?: number;
+  onCargarMas?: () => void;
   onAbrirFiltros?: () => void;
 };
 
+/* Mismo tipo que usa cart-sidebar.tsx (id como string) */
 type CartItem = {
-  id:       number;
-  titulo:   string;
+  id: string;
+  titulo: string;
   categoria: string;
-  marca:    string;
-  imagen:   string;
+  marca: string;
+  imagen: string;
   cantidad: number;
 };
 
-// ─── Constantes ───────────────────────────────────────────────────────────────
-
-const STORAGE_KEY      = "cartItems";
-const WHATSAPP_NUMBER  = "51915144663";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const normalizarNombre = (nombre: string | undefined | null, fallback: string): string =>
-  nombre
-    ?.replace(/\.[^.]+$/, "")
-    ?.replace(/[_-]+/g, " ")
-    ?.trim()
-    ?.replace(/\b\w/g, (c) => c.toUpperCase())
-    ?? fallback;
-
-const deduplicar = (listas: Producto[][]): Producto[] => {
-  const mapa = new Map<number, Producto>();
-  for (const lista of listas)
-    for (const p of lista) mapa.set(p.prdcid, p);
-  return Array.from(mapa.values());
+type FiltroActivo = {
+  tipo: "categoria" | "marca";
+  nombre: string;
 };
-// ─── Componente ───────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "cartItems";
+
+const normalizar = (texto: string) =>
+  texto.trim().toLowerCase().replace(/es$/i, "").replace(/s$/i, "");
+
+const leerCarrito = (): CartItem[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+/** Imagen del producto: usa el caché del navegador. */
+function ImagenProducto({ producto }: { producto: ProductoUI }) {
+  const src = useImagenCacheada(producto.claveImagen, producto.imagen);
+
+  return src ? (
+    <img src={src} alt={producto.titulo} className={styles.imagen} loading="lazy" />
+  ) : (
+    <div className={styles.placeholder}>Sin imagen</div>
+  );
+}
 
 export default function Seccion_3({
-  
+  productos,
+  cargando = false,
+  error = null,
   categoriasSeleccionadas = [],
-  marcasSeleccionadas     = [],
-  busquedaGeneral         = "",
-  onEliminarCategoria     = () => {},
-  onEliminarMarca         = () => {},
-  productosVisibles       = 12,
-  onCargarMas             = () => {},
+  marcasSeleccionadas = [],
+  busquedaGeneral = "",
+  onEliminarCategoria = () => {},
+  onEliminarMarca = () => {},
+  onLimpiarFiltros,
+  productosVisibles = 12,
+  onCargarMas = () => {},
   onAbrirFiltros = () => {},
 }: Props) {
-  const [productos,           setProductos]           = useState<Producto[]>([]);
-  const [cargando,            setCargando]            = useState(true);
-  const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
-  const [mostrarFiltros,       setMostrarFiltros]       = useState(false); // ← aquí dentro
+  /* ── Filtrado local ── */
+  const productosFiltrados = useMemo(() => {
+    let lista = productos;
 
-  // ── Carga de productos ────────────────────────────────────────────────────
-
-useEffect(() => {
-  let cancelado = false;
-
-  const normalizar = (texto: string) =>
-    texto.trim().replace(/es$/i, "").replace(/s$/i, "");
-
-  const cargar = async () => {
-    setCargando(true);
-    try {
-      const queryNormalizada = busquedaGeneral.trim()
-        ? normalizar(busquedaGeneral.trim())
-        : "";
-
-      const data = await listarProductosFiltrados(
-        categoriasSeleccionadas,
-        marcasSeleccionadas,
-        queryNormalizada   // ← "pinturas" → "pintura" antes de llamar al backend
-      );
-
-      if (cancelado) return;
-      setProductos(data);
-    } catch (err) {
-      if (cancelado) return;
-      console.error("Error cargando productos:", err);
-      setProductos([]);
-    } finally {
-      if (!cancelado) setCargando(false);
+    if (categoriasSeleccionadas.length > 0) {
+      const cats = categoriasSeleccionadas.map((c) => c.toLowerCase());
+      lista = lista.filter((p) => cats.includes(p.categoria.toLowerCase()));
     }
-  };
 
-  cargar();
-  return () => { cancelado = true; };
-}, [categoriasSeleccionadas, marcasSeleccionadas, busquedaGeneral]);
-  // ── Filtrado local por búsqueda ───────────────────────────────────────────
+    if (marcasSeleccionadas.length > 0) {
+      const marcas = marcasSeleccionadas.map((m) => m.toLowerCase());
+      lista = lista.filter((p) => marcas.includes(p.marca.toLowerCase()));
+    }
 
-const productosFiltrados = useMemo(() => {
-  if (!busquedaGeneral.trim()) return productos;
+    if (!busquedaGeneral.trim()) return lista;
 
-  const normalizar = (texto: string) =>
-    texto.replace(/es$/i, "").replace(/s$/i, "");
+    const query = normalizar(busquedaGeneral);
+    const palabras = query.split(/\s+/).map(normalizar);
 
-  // Usar la misma query normalizada que se mandó al backend
-  const query      = normalizar(busquedaGeneral.trim().toLowerCase());
-  const qNorm      = query; // ya está normalizada
-  const palabras   = query.split(/\s+/);
-  const palabrasNorm = palabras.map(normalizar);
+    const puntaje = (nombre: string): number => {
+      const n = nombre.toLowerCase();
+      const nNorm = normalizar(n);
 
-  const puntaje = (nombre: string): number => {
-    const n     = nombre.toLowerCase();
-    const nNorm = normalizar(n);
+      if (n === query) return 100;
+      if (n.startsWith(query)) return 90;
+      if (nNorm.startsWith(query)) return 85;
+      if (n.includes(query)) return 70;
+      if (nNorm.includes(query)) return 65;
+      if (palabras.every((p) => nNorm.includes(p))) return 60;
 
-    if (n === query)              return 100;
-    if (n.startsWith(query))      return 90;
-    if (nNorm.startsWith(qNorm))  return 85;
-    if (n.includes(query))        return 70;
-    if (nNorm.includes(qNorm))    return 65;
-    if (palabrasNorm.every((p) => nNorm.includes(p))) return 60;
+      const coincidencias = palabras.filter((p) => nNorm.includes(p)).length;
+      return coincidencias > 0 ? 50 + (coincidencias / palabras.length) * 9 : 0;
+    };
 
-    const coincidencias = palabrasNorm.filter((p) => nNorm.includes(p)).length;
-    if (coincidencias > 0) return 50 + (coincidencias / palabrasNorm.length) * 9;
+    return lista
+      .map((producto) => ({ producto, score: puntaje(producto.titulo) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ producto }) => producto);
+  }, [productos, categoriasSeleccionadas, marcasSeleccionadas, busquedaGeneral]);
 
-    return 0;
-  };
-
-  return [...productos]
-    .map((p) => ({ producto: p, score: puntaje(p.prdcnombre ?? "") }))
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score)
-    .map(({ producto }) => producto);
-}, [productos, busquedaGeneral]);
   const productosRenderizados = useMemo(
     () => productosFiltrados.slice(0, productosVisibles),
     [productosFiltrados, productosVisibles]
   );
 
-  // ── Acciones carrito / WhatsApp ───────────────────────────────────────────
+  /* Categorías y marcas juntas en una sola lista de chips */
+  const filtrosActivos: FiltroActivo[] = [
+    ...categoriasSeleccionadas.map((nombre) => ({ tipo: "categoria" as const, nombre })),
+    ...marcasSeleccionadas.map((nombre) => ({ tipo: "marca" as const, nombre })),
+  ];
 
-  const anadirAlCarrito = () => {
-    if (!productoSeleccionado) return;
+  const quitarFiltro = ({ tipo, nombre }: FiltroActivo) =>
+    tipo === "categoria" ? onEliminarCategoria(nombre) : onEliminarMarca(nombre);
 
-    const nuevo: CartItem = {
-      id:       productoSeleccionado.prdcid,
-      titulo:   normalizarNombre(productoSeleccionado.prdcnombre,              `Producto ${productoSeleccionado.prdcid}`),
-      categoria: normalizarNombre(productoSeleccionado.categoria?.ctgranombre, "Sin categoría"),
-      marca:    normalizarNombre(productoSeleccionado.marca?.marcanombre,      "Sin marca"),
-      imagen:   productoSeleccionado.prdcimgnombrebucket
-        ? getImagenProducto(productoSeleccionado.prdcimgnombrebucket)
-        : "",
-      cantidad: 1,
-    };
+  /* Agrega el producto al carrito y abre el sidebar directamente */
+  const agregarAlCarrito = (producto: ProductoUI) => {
+    const { titulo, categoria, marca } = producto;
+    const imagen = producto.imagen ?? "";
+    const id = String(producto.id);
+    const items = leerCarrito();
+    const existe = items.some((i) => i.id === id);
 
-    const previos: CartItem[] = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    const siguientes = previos.some((i) => i.id === nuevo.id)
-      ? previos.map((i) => (i.id === nuevo.id ? { ...i, cantidad: i.cantidad + 1 } : i))
-      : [...previos, nuevo];
+    const nextItems: CartItem[] = existe
+      ? items.map((i) => (i.id === id ? { ...i, cantidad: i.cantidad + 1 } : i))
+      : [...items, { id, titulo, categoria, marca, imagen, cantidad: 1 }];
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(siguientes));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextItems));
     window.dispatchEvent(new Event("cartUpdated"));
-    setProductoSeleccionado(null);
+    window.dispatchEvent(new Event("openCart"));
   };
-
-  const comprarPorWhatsapp = () => {
-    if (!productoSeleccionado) return;
-
-    const mensaje = [
-      "Hola, quiero comprar este producto:",
-      normalizarNombre(productoSeleccionado.prdcnombre,              `Producto ${productoSeleccionado.prdcid}`),
-      `Marca: ${normalizarNombre(productoSeleccionado.marca?.marcanombre,      "Sin marca")}`,
-      `Categoría: ${normalizarNombre(productoSeleccionado.categoria?.ctgranombre, "Sin categoría")}`,
-    ].join("\n");
-
-    window.open(
-      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensaje)}`,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  };
-
-  // ── Render helpers ────────────────────────────────────────────────────────
-
-  const renderFiltros = (
-    items: string[],
-    onEliminar: (item: string) => void
-  ) =>
-    items.length > 0 ? (
-      items.map((item) => (
-        <button
-          key={item}
-          type="button"
-          className={styles.tagBoton}
-          onClick={() => onEliminar(item)}
-        >
-          <span className={styles.tagTexto}>{item}</span>
-          <span className={styles.tagCerrar}>✕</span>
-        </button>
-      ))
-    ) : (
-      <span className={styles.tag}>Todas</span>
-    );
-
-  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <>
-      <section className={styles.seccion}>
+    <section className={styles.seccion}>
+      {/* Botón filtrar (solo mobile) */}
+      <button type="button" className={styles.botonFiltrar} onClick={onAbrirFiltros}>
+        Filtrar
+      </button>
 
-        {/* ── Filtros activos ── */}
-        {/* ── Filtros activos ── */}
-        <button
-          type="button"
-          className={styles.botonFiltrar}
-          onClick={onAbrirFiltros} 
-        >
-          Filtrar
-        </button>
-
-        <div className={`${styles.resumen} ${mostrarFiltros ? styles.resumenVisible : ""}`}>
+      {/* Filtros activos (solo desktop) */}
+      {filtrosActivos.length > 0 && (
+        <div className={styles.resumen}>
           <div className={styles.resumenCabecera}>
-            <p className={styles.resumenTitulo}>Filtros activos</p>
-            <p className={styles.resumenTexto}>
-              Ajusta categorías y marcas para encontrar más rápido.
+            <p className={styles.resumenTitulo}>
+              Filtros activos ({filtrosActivos.length})
             </p>
+
+            {onLimpiarFiltros && (
+              <button
+                type="button"
+                className={styles.limpiarTodo}
+                onClick={onLimpiarFiltros}
+              >
+                Limpiar todo
+              </button>
+            )}
           </div>
 
-          <div className={styles.resumenGrid}>
-            <div className={styles.resumenBloque}>
-              <p className={styles.etiqueta}>Marca</p>
-              <div className={styles.tagsFila}>
-                {renderFiltros(marcasSeleccionadas, onEliminarMarca)}
-              </div>
-            </div>
-
-            <div className={styles.resumenBloque}>
-              <p className={styles.etiqueta}>Categorías</p>
-              <div className={styles.tagsFila}>
-                {renderFiltros(categoriasSeleccionadas, onEliminarCategoria)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Overlay para cerrar en mobile */}
-        {mostrarFiltros && (
-          <div
-            className={styles.filtrosOverlay}
-            onClick={() => setMostrarFiltros(false)}
-          />
-        )}
-
-        {/* ── Grid de productos ── */}
-        <div className={styles.cuerpo}>
-          {cargando ? (
-            <div className={styles.vacio}>Cargando productos...</div>
-
-          ) : productosFiltrados.length === 0 ? (
-            <div className={styles.vacio}>
-              {busquedaGeneral.trim() && !categoriasSeleccionadas.length && !marcasSeleccionadas.length
-                ? `No se encontraron productos para "${busquedaGeneral}".`
-                : "No hay productos disponibles."}
-            </div>
-
-          ) : (
-            <>
-              <div className={styles.gridProductos}>
-                {productosRenderizados.map((producto) => {
-                  const titulo    = normalizarNombre(producto.prdcnombre,                  `Producto ${producto.prdcid}`);
-                  const categoria = normalizarNombre(producto.categoria?.ctgranombre,      "Sin categoría");
-                  const marca     = normalizarNombre(producto.marca?.marcanombre,          "Sin marca");
-                  const imagen    = producto.prdcimgnombrebucket
-                    ? getImagenProducto(producto.prdcimgnombrebucket)
-                    : "";
-
-                  return (
-                    <article key={producto.prdcid} className={styles.productoCard}>
-                      <div className={styles.productoImagenWrap}>
-                        {imagen ? (
-                          <img
-                            src={imagen}
-                            alt={titulo}
-                            className={styles.productoImagen}
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className={styles.productoPlaceholder}>Sin imagen</div>
-                        )}
-                      </div>
-
-                      <h3 className={styles.productoTitulo}>{titulo}</h3>
-                      <p className={styles.productoCategoria}>{categoria}</p>
-                      <p className={styles.productoMarca}>{marca}</p>
-
-                      <button
-                        type="button"
-                        className={styles.loQuieroButton}
-                        onClick={() => setProductoSeleccionado(producto)}
-                      >
-                        {icon.iconCarrito({ className: styles.modalSvg })}
-                        Lo quiero
-                      </button>
-                    </article>
-                  );
-                })}
-              </div>
-
-              {productosFiltrados.length > productosRenderizados.length && (
-                <div className={styles.acciones}>
-                  <button type="button" className={styles.cargarMas} onClick={onCargarMas}>
-                    Ver más productos
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* ── Modal de compra ── */}
-      {productoSeleccionado && (
-        <div className={styles.modalOverlay} onClick={() => setProductoSeleccionado(null)}>
-          <div className={styles.modalCompra} onClick={(e) => e.stopPropagation()}>
-            <h3 className={styles.modalTitulo}>¿Cómo deseas continuar?</h3>
-            <p className={styles.modalTexto}>Elige una opción para completar tu compra</p>
-
-            <button type="button" className={styles.modalBotonNaranja} onClick={anadirAlCarrito}>
-              {icon.iconCarrito({ className: styles.modalCarrito })}
-              <span>Añadir al carrito</span>
-            </button>
-
-            <button type="button" className={styles.modalBotonVerde} onClick={comprarPorWhatsapp}>
-              {icon.iconWhatsApp({ className: styles.modalWhatsapp })}
-              <span>Realizar la compra</span>
-            </button>
+          <div className={styles.chips}>
+            {filtrosActivos.map((filtro) => (
+              <span key={`${filtro.tipo}-${filtro.nombre}`} className={styles.chip}>
+                {filtro.nombre}
+                <button
+                  type="button"
+                  className={styles.chipQuitar}
+                  onClick={() => quitarFiltro(filtro)}
+                  aria-label={`Quitar filtro ${filtro.nombre}`}
+                >
+                  <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                    <path
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      d="M2 2l8 8M10 2L2 10"
+                    />
+                  </svg>
+                </button>
+              </span>
+            ))}
           </div>
         </div>
       )}
-    </>
+
+      {/* Grid de productos */}
+      <div className={styles.cuerpo}>
+        {productosFiltrados.length === 0 ? (
+          <div className={styles.vacio}>
+            {cargando
+              ? "Cargando productos..."
+              : error
+                ? error
+                : busquedaGeneral.trim() && filtrosActivos.length === 0
+                  ? `No se encontraron productos para "${busquedaGeneral}".`
+                  : "No hay productos disponibles."}
+          </div>
+        ) : (
+          <>
+            <div className={styles.gridProductos}>
+              {productosRenderizados.map((producto) => (
+                <article key={producto.id} className={styles.card}>
+                  {/* Parte superior: imagen */}
+                  <div className={styles.imagenWrap}>
+                    <ImagenProducto producto={producto} />
+                  </div>
+
+                  {/* Parte inferior: marca, nombre y botón de carrito */}
+                  <div className={styles.cardBody}>
+                    <p className={styles.cardMarca}>{producto.marca}</p>
+                    <h3 className={styles.cardTitulo}>{producto.titulo}</h3>
+
+                    <div className={styles.cardFooter}>
+                      <button
+                        className={styles.botonCarrito}
+                        type="button"
+                        aria-label={`Añadir ${producto.titulo} al carrito`}
+                        onClick={() => agregarAlCarrito(producto)}
+                      >
+                        {icon.iconCarrito({ className: styles.icon })}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {productosFiltrados.length > productosRenderizados.length && (
+              <div className={styles.acciones}>
+                <button type="button" className={styles.cargarMas} onClick={onCargarMas}>
+                  Ver más productos
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </section>
   );
 }

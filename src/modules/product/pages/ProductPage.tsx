@@ -1,20 +1,11 @@
 import styles from "./ProductPage.module.css";
-import { startTransition, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import Seccion_1 from "../components/seccion_1/seccion_1";
 import Seccion_2 from "../components/seccion_2/seccion_2";
 import Seccion_3 from "../components/seccion_3/seccion_3";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const normalizarNombre = (nombre: string | undefined | null, fallback: string) =>
-  nombre
-    ?.replace(/\.[^.]+$/, "")
-    ?.replace(/[_-]+/g, " ")
-    ?.trim()
-    ?.replace(/\b\w/g, (c) => c.toUpperCase())
-    ?? fallback;
+import { useTienda } from "../controllers/ProductControllers";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -24,7 +15,7 @@ const INITIAL_VISIBLE = 40;
 
 export default function ProductPage() {
   const [searchParams] = useSearchParams();
-
+  const tienda = useTienda();
   const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState<string[]>([]);
   const [marcasSeleccionadas,     setMarcasSeleccionadas]     = useState<string[]>([]);
   const [busquedaGeneral,         setBusquedaGeneral]         = useState("");
@@ -80,9 +71,11 @@ useEffect(() => {
 
   return (
     <div className={styles.page}>
-      <Seccion_1 onMarcaSeleccionada={toggleMarca} />
+      <Seccion_1 marcas={tienda.marcas} onMarcaSeleccionada={toggleMarca} />
       <div className={styles.layout}>
         <Seccion_2
+          categorias={tienda.categorias}
+          marcas={tienda.marcas}
           categoriasSeleccionadas={categoriasSeleccionadas}
           marcasSeleccionadas={marcasSeleccionadas}
           onCategoriaSeleccionada={toggleCategoria}
@@ -95,6 +88,8 @@ useEffect(() => {
             <aside className={styles.sidebarDrawer}>
               <Seccion_2
                 enDrawer={true}
+                categorias={tienda.categorias}
+                marcas={tienda.marcas}
                 categoriasSeleccionadas={categoriasSeleccionadas}
                 marcasSeleccionadas={marcasSeleccionadas}
                 onCategoriaSeleccionada={toggleCategoria}
@@ -105,6 +100,9 @@ useEffect(() => {
         )}
 
         <Seccion_3
+          productos={tienda.productos}
+          cargando={tienda.cargando}
+          error={tienda.error}
           categoriasSeleccionadas={categoriasSeleccionadas}
           marcasSeleccionadas={marcasSeleccionadas}
           busquedaGeneral={busquedaGeneral}

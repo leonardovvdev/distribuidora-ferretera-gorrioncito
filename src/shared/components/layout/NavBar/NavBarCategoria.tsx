@@ -1,23 +1,17 @@
-import { startTransition, useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 import style from "./NavBarCategoria.module.css";
 import { icon } from "../../../../core/icons";
 
 import {
-  listarProductos,
-  getImagenProducto,
-  listarProductosPorCategoria
-} from "../../../../core/services/producto.service";
+  CATEGORIAS_MOCK,
+  PRODUCTOS_MOCK,
+  MARCAS_MOCK,
+  type ProductoUI,
+} from "../../../../modules/home/data";
 
-import {
-  listarCategorias,
-} from "../../../../core/services/categoria.service";
-
-import {
-  listarMarcas,
-  getImagenMarca,
-} from "../../../../core/services/marca.service";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+/* ── Tipos ───────────────────────────────────────────── */
 
 type CartItem = {
   id: string | number;
@@ -28,420 +22,387 @@ type CartItem = {
   cantidad: number;
 };
 
-type CatalogProduct = {
-  id: number;
-  titulo: string;
-  categoria: string;
-  marca: string;
-  marcaImagen: string; // ← logo para el sidebar
-  imagen: string;
-};
+// "imagen" es opcional: si tu CATEGORIAS_MOCK la trae, se muestra como ícono
+type CategoriaUI = { id: string | number; titulo: string };
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+/* ── Constantes ──────────────────────────────────────── */
 
 const STORAGE_KEY = "cartItems";
+const WHATSAPP_NUMBER = "51915144663";
 
-const CACHE_CATEGORIAS = "menu_categorias";
-const CACHE_MARCAS     = "menu_marcas";
+const normalizar = (texto: string) => texto.trim().toLowerCase();
 
-const CACHE_PRODUCTOS_PREFIX = "menu_productos_";
+// Categorías ordenadas alfabéticamente
+const CATEGORIAS = [...(CATEGORIAS_MOCK as CategoriaUI[])].sort((a, b) =>
+  a.titulo.localeCompare(b.titulo)
+);
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const IMAGEN_POR_MARCA = new Map(MARCAS_MOCK.map((m) => [m.titulo, m.imagen]));
 
-export const NavBarCategoria = () => {
-
-  const [mostrarCategorias, setMostrarCategorias] = useState(false);
-  const [productosCatalogo, setProductosCatalogo] = useState<CatalogProduct[]>([]);
-  const [categoriasMenu, setCategoriasMenu] = useState<string[]>([]);
-  const [, setMarcasMenu] = useState<{ nombre: string; imagen: string }[]>([]);
-  const [menuCargado, setMenuCargado] = useState(false);
-  const [categoriaActiva, setCategoriaActiva] = useState("");
-  const [cargandoMenu, setCargandoMenu] = useState(false);
-  const [cargandoProductos, setCargandoProductos] = useState(false);
-
-  // ─── Marcas derivadas de los productos visibles ───────────────────────────
-
-  const marcasDeLaCategoria = useMemo(() => {
-    const vistas = new Map<string, string>(); // nombre → imagen
-    for (const p of productosCatalogo) {
-      if (p.marca && !vistas.has(p.marca)) {
-        vistas.set(p.marca, p.marcaImagen);
-      }
-    }
-    return Array.from(vistas.entries()).map(([nombre, imagen]) => ({ nombre, imagen }));
-  }, [productosCatalogo]);
-
-  // ─── Modal ────────────────────────────────────────────────────────────────
-
-  const [mostrarModalCompra, setMostrarModalCompra] = useState(false);
-  const [productoSeleccionado, setProductoSeleccionado] = useState<CatalogProduct | null>(null);
-
-  // ─── Cargar categorías y marcas ───────────────────────────────────────────
-
-  const cargarMenu = async () => {
-
-    if (menuCargado || cargandoMenu) return;
-
-    try {
-      setCargandoMenu(true);
-
-      const categoriasCache = localStorage.getItem(CACHE_CATEGORIAS);
-      const marcasCache     = localStorage.getItem(CACHE_MARCAS);
-
-      if (categoriasCache && marcasCache) {
-        const categorias = JSON.parse(categoriasCache);
-        const marcas     = JSON.parse(marcasCache);
-        setCategoriasMenu(categorias);
-        setMarcasMenu(marcas);
-        if (categorias.length > 0) setCategoriaActiva(categorias[0]);
-        setMenuCargado(true);
-        return;
-      }
-
-      const [categoriasData, marcasData] = await Promise.all([
-        listarCategorias(),
-        listarMarcas(),
-      ]);
-
-      const categoriasOrdenadas = categoriasData
-        .map((c) => c.ctgranombre?.trim())
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b));
-
-      const marcasLista = marcasData.map((m) => ({
-        nombre: m.marcanombre,
-        imagen: getImagenMarca(m.marcaimgnombrebucket),
-      }));
-
-      localStorage.setItem(CACHE_CATEGORIAS, JSON.stringify(categoriasOrdenadas));
-      localStorage.setItem(CACHE_MARCAS,     JSON.stringify(marcasLista));
-
-      startTransition(() => {
-        setCategoriasMenu(categoriasOrdenadas);
-        setMarcasMenu(marcasLista);
-        if (categoriasOrdenadas.length > 0) setCategoriaActiva(categoriasOrdenadas[0]);
-        setMenuCargado(true);
-      });
-
-    } catch (error) {
-      console.error("Error al cargar menu:", error);
-      setCategoriasMenu([]);
-      setMarcasMenu([]);
-    } finally {
-      setCargandoMenu(false);
-    }
-  };
-
-  // ─── Cargar productos por categoría ──────────────────────────────────────
-
- const cargarProductosPorCategoria = async (categoria: string) => {
+const leerCarrito = (): CartItem[] => {
   try {
-    setCargandoProductos(true);
-
-    const cacheKey = `${CACHE_PRODUCTOS_PREFIX}${categoria}`;
-    const productosCache = localStorage.getItem(cacheKey);
-    if (productosCache) {
-      setProductosCatalogo(JSON.parse(productosCache));
-      return;
-    }
-
-    const lote = await listarProductosPorCategoria(categoria);
-
-    const transformados: CatalogProduct[] = lote.map((producto) => ({
-      id:          producto.prdcid,
-      titulo:      producto.prdcnombre,
-      categoria:   producto.categoria?.ctgranombre  ?? "",
-      marca:       producto.marca?.marcanombre       ?? "",
-      marcaImagen: producto.marca?.marcaimgnombrebucket
-        ? getImagenMarca(producto.marca.marcaimgnombrebucket)
-        : "",
-      imagen: producto.prdcimgnombrebucket
-        ? getImagenProducto(producto.prdcimgnombrebucket)
-        : "",
-    }));
-
-    localStorage.setItem(cacheKey, JSON.stringify(transformados));
-    setProductosCatalogo(transformados);
-
-  } finally {
-    setCargandoProductos(false);
+    const data = localStorage.getItem(STORAGE_KEY);
+    const parsed = data ? JSON.parse(data) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
 };
-  // ─── Escuchar cambio de categoría ────────────────────────────────────────
 
+/* ── Íconos ──────────────────────────────────────────── */
+
+const IconoLista = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      fill="currentColor"
+      d="M4 5h4v4H4V5Zm6 1h10v2H10V6ZM4 10h4v4H4v-4Zm6 1h10v2H10v-2ZM4 15h4v4H4v-4Zm6 1h10v2H10v-2Z"
+    />
+  </svg>
+);
+
+const IconoEtiqueta = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      d="M3.5 3.5h8.2a1 1 0 0 1 .7.3l8.1 8.1a1 1 0 0 1 0 1.4l-7.2 7.2a1 1 0 0 1-1.4 0L3.8 12.4a1 1 0 0 1-.3-.7V3.5Z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    />
+    <circle cx="8" cy="8" r="1.4" fill="currentColor" />
+  </svg>
+);
+
+const IconoEstrella = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      fill="currentColor"
+      d="m12 2.5 2.9 6 6.6.9-4.8 4.6 1.2 6.5-5.9-3.1-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9L12 2.5Z"
+    />
+  </svg>
+);
+
+const IconoCerrar = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    <path
+      d="M6 6l12 12M18 6 6 18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+/* ── Componente ──────────────────────────────────────── */
+
+export const NavBarCategoria = () => {
+  const [abierto, setAbierto] = useState(false);
+  const [categoriaActiva, setCategoriaActiva] = useState(
+    CATEGORIAS[0]?.titulo ?? ""
+  );
+  const [productoSeleccionado, setProductoSeleccionado] =
+    useState<ProductoUI | null>(null);
+
+  /* Productos de la categoría activa */
+  const productos = useMemo(
+    () =>
+      PRODUCTOS_MOCK.filter(
+        (p) => normalizar(p.categoria) === normalizar(categoriaActiva)
+      ),
+    [categoriaActiva]
+  );
+
+  /* Marcas presentes en esos productos */
+  const marcas = useMemo(() => {
+    const nombres = new Set<string>();
+    productos.forEach((p) => p.marca && nombres.add(p.marca));
+    return Array.from(nombres).map((nombre) => ({
+      nombre,
+      imagen: IMAGEN_POR_MARCA.get(nombre) ?? "",
+    }));
+  }, [productos]);
+
+  /* Escape cierra (primero el modal de compra) y se bloquea el scroll de fondo */
   useEffect(() => {
-    if (!categoriaActiva) return;
-    cargarProductosPorCategoria(categoriaActiva);
-  }, [categoriaActiva]);
+    if (!abierto && !productoSeleccionado) return;
 
-  // ─── Abrir / cerrar menú ──────────────────────────────────────────────────
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (productoSeleccionado) setProductoSeleccionado(null);
+      else setAbierto(false);
+    };
+    const overflowPrevio = document.body.style.overflow;
 
-  const handleToggleCategorias = () => {
-    const next = !mostrarCategorias;
-    setMostrarCategorias(next);
-    if (next) cargarMenu();
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = overflowPrevio;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [abierto, productoSeleccionado]);
+
+  const cerrar = () => setAbierto(false);
+
+  const irA = () => {
+    window.scrollTo({ top: 0 });
+    cerrar();
   };
 
-  // ─── Modal ────────────────────────────────────────────────────────────────
-
-  const abrirModalCompra = (producto: CatalogProduct) => {
-    setProductoSeleccionado(producto);
-    setMostrarModalCompra(true);
-  };
-
-  // ─── Carrito ──────────────────────────────────────────────────────────────
-
+  /* Carrito */
   const anadirAlCarrito = () => {
-
     if (!productoSeleccionado) return;
 
-    const data = localStorage.getItem(STORAGE_KEY);
+    const id = String(productoSeleccionado.id);
+    const { titulo, categoria: cat, marca, imagen } = productoSeleccionado;
+    const items = leerCarrito();
+    const existe = items.some((item) => String(item.id) === id);
 
-    const cartItems: CartItem[] = (() => {
-      if (!data) return [];
-      try {
-        const parsed = JSON.parse(data);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    })();
-
-    const existente = cartItems.find((item) => item.id === productoSeleccionado.id);
-
-    const nextItems: CartItem[] = existente
-      ? cartItems.map((item) =>
-          item.id === productoSeleccionado.id
+    const nextItems: CartItem[] = existe
+      ? items.map((item) =>
+          String(item.id) === id
             ? { ...item, cantidad: item.cantidad + 1 }
             : item
         )
-      : [
-          ...cartItems,
-          {
-            id:        productoSeleccionado.id,
-            titulo:    productoSeleccionado.titulo,
-            categoria: productoSeleccionado.categoria,
-            marca:     productoSeleccionado.marca,
-            imagen:    productoSeleccionado.imagen,
-            cantidad:  1,
-          },
-        ];
+      : [...items, { id, titulo, categoria: cat, marca, imagen, cantidad: 1 }];
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextItems));
     window.dispatchEvent(new Event("cartUpdated"));
 
-    setMostrarModalCompra(false);
-    setMostrarCategorias(false);
+    setProductoSeleccionado(null);
+    cerrar();
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  /* WhatsApp */
+  const comprarPorWhatsapp = () => {
+    if (!productoSeleccionado) return;
+
+    const { titulo, marca, categoria: cat } = productoSeleccionado;
+    const mensaje = [
+      "Hola, quiero comprar este producto:",
+      titulo,
+      `Marca: ${marca}`,
+      `Categoria: ${cat}`,
+    ].join("\n");
+
+    window.open(
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensaje)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
+  /* ── Panel de categorías ── */
+  const panel = (
+    <div className={style.overlay} onClick={cerrar}>
+      <div
+        className={style.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="categorias-titulo"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          className={style.cerrar}
+          onClick={cerrar}
+          aria-label="Cerrar categorías"
+        >
+          <IconoCerrar className={style.cerrarIcono} />
+        </button>
+
+        <div className={style.panel}>
+          {/* Categorías */}
+          <aside className={style.sidebar}>
+            <div className={style.sidebarEncabezado}>
+              <IconoEtiqueta className={style.sidebarIcono} />
+              <h2 id="categorias-titulo" className={style.sidebarTitulo}>
+                Categorías
+              </h2>
+            </div>
+
+            <nav aria-label="Categorías">
+              <ul className={style.listaCategorias}>
+                {CATEGORIAS.map((cat) => {
+                  const activa =
+                    normalizar(cat.titulo) === normalizar(categoriaActiva);
+
+                  return (
+                    <li key={cat.id}>
+                     <button
+                        type="button"
+                        className={`${style.categoriaItem} ${activa ? style.categoriaActiva : ""}`}
+                        aria-current={activa ? "true" : undefined}
+                        onClick={() => setCategoriaActiva(cat.titulo)}
+                      >
+                        <span className={style.categoriaNombre}>{cat.titulo}</span>
+                        <span className={style.chevron} aria-hidden="true" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          </aside>
+
+          {/* Productos */}
+          <section className={style.contenido}>
+           <header className={style.contenidoEncabezado}>
+            <div className={style.contenidoTitulos}>
+              <h3 className={style.contenidoTitulo}>{categoriaActiva}</h3>
+              <p className={style.contenidoTexto}>
+                Encuentra todo lo que necesitas para tus proyectos.
+              </p>
+            </div>
+            {productos.length > 0 && (
+              <Link
+                to={`/product?categoria=${encodeURIComponent(categoriaActiva)}`}
+                className={style.verTodo}
+                onClick={irA}
+              >
+                Ver todo ({productos.length})
+              </Link>
+            )}
+          </header>
+
+            {productos.length > 0 ? (
+              <div className={style.gridProductos}>
+                {productos.map((producto) => (
+                  <article key={producto.id} className={style.productoCard}>
+                    <div className={style.productoImagenWrap}>
+                      {producto.imagen ? (
+                        <img
+                          src={producto.imagen}
+                          alt={producto.titulo}
+                          className={style.productoImagen}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className={style.productoPlaceholder}>
+                          Sin imagen
+                        </div>
+                      )}
+                    </div>
+
+                    <h4 className={style.productoTitulo}>{producto.titulo}</h4>
+
+                    <button
+                      type="button"
+                      className={style.loQuieroButton}
+                      onClick={() => setProductoSeleccionado(producto)}
+                    >
+                      {icon.iconCarrito({ className: style.loQuieroIcono })}
+                      Lo quiero
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className={style.vacio}>
+                Aún no hay productos en esta categoría.
+              </p>
+            )}
+          </section>
+
+          {/* Marcas de la categoría */}
+          <aside className={style.marcas}>
+            <h3 className={style.marcasTitulo}>
+              <IconoEstrella className={style.marcasIcono} />
+              Marcas
+            </h3>
+            <p className={style.marcasTexto}>
+              Aliados con presencia consolidada en el sector.
+            </p>
+
+            {marcas.length > 0 ? (
+              <ul className={style.marcasLista}>
+                {marcas.map((marca) => (
+                  <li key={marca.nombre}>
+                    <Link
+                      to={`/product?marca=${encodeURIComponent(marca.nombre)}`}
+                      className={style.marcaItem}
+                      aria-label={`Ver productos de ${marca.nombre}`}
+                      onClick={irA}
+                    >
+                      {marca.imagen ? (
+                        <img
+                          src={marca.imagen}
+                          alt={marca.nombre}
+                          className={style.marcaImg}
+                        />
+                      ) : (
+                        <span className={style.marcaTexto}>{marca.nombre}</span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className={style.marcasTexto}>Sin marcas para mostrar.</p>
+            )}
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ── Modal de compra ── */
+  const modalCompra = productoSeleccionado && (
+    <div
+      className={style.modalOverlay}
+      onClick={() => setProductoSeleccionado(null)}
+    >
+      <div
+        className={style.modalCompra}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="compra-titulo"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 id="compra-titulo" className={style.modalTitulo}>
+          ¿Cómo deseas continuar?
+        </h3>
+        <p className={style.modalTexto}>
+          Elige una opción para poder completar tu compra
+        </p>
+
+        <button
+          type="button"
+          className={style.modalBotonNaranja}
+          onClick={anadirAlCarrito}
+        >
+          {icon.iconCarrito({ className: style.modalIcono })}
+          <span>Añadir al carrito</span>
+        </button>
+
+        <button
+          type="button"
+          className={style.modalBotonVerde}
+          onClick={comprarPorWhatsapp}
+        >
+          {icon.iconWhatsApp({ className: style.modalIcono })}
+          <span>Realizar la compra</span>
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <>
       <button
         type="button"
-        className={style.linkButton}
-        onClick={handleToggleCategorias}
+        className={style.trigger}
+        aria-haspopup="dialog"
+        aria-expanded={abierto}
+        onClick={() => setAbierto(true)}
       >
-        Categorias
+        <IconoLista className={style.triggerIcono} />
+        Categorías
       </button>
 
-      {mostrarCategorias && (
-        <div
-          className={style.overlay}
-          onClick={() => setMostrarCategorias(false)}
-        >
-          <div
-            className={style.panel}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={style.panelContenido}>
-
-              {/* Categorías */}
-
-              <aside className={style.sidebar}>
-
-                <h3 className={style.panelTitulo}>Categorias</h3>
-
-                <p className={style.panelSubtitulo}>
-                  Explora el catalogo por familia de productos.
-                </p>
-
-                <div className={style.listaCategorias}>
-                  {categoriasMenu.map((categoria, index) => (
-                    <button
-                      key={categoria}
-                      type="button"
-                      className={`${style.categoriaItem} ${
-                        categoriaActiva.trim().toLowerCase() ===
-                        categoria.trim().toLowerCase()
-                          ? style.categoriaActiva
-                          : ""
-                      }`}
-                      onClick={() => setCategoriaActiva(categoria)}
-                    >
-                      <span>{categoria}</span>
-                      <span className={style.categoriaFlecha}>
-                        {index === 0 ? ">" : "+"}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-              </aside>
-
-              {/* Productos */}
-
-              <section className={style.productosArea}>
-
-                <div className={style.productosEncabezado}>
-                  <div>
-                    <h3 className={style.productosTitulo}>Productos destacados</h3>
-                    <p className={style.productosTexto}>
-                      Una vista rapida del catalogo disponible.
-                    </p>
-                  </div>
-                  <span className={style.productosBadge}>
-                    {productosCatalogo.length}
-                  </span>
-                </div>
-
-                {cargandoProductos ? (
-
-                  <div className={style.panelVacioCentro}>
-                    Cargando productos...
-                  </div>
-
-                ) : productosCatalogo.length > 0 ? (
-
-                  <div className={style.gridProductos}>
-                    {productosCatalogo.map((producto) => (
-                      <article key={producto.id} className={style.productoCard}>
-
-                        <div className={style.productoImagenWrap}>
-                          {producto.imagen ? (
-                            <img
-                              src={producto.imagen}
-                              alt={producto.titulo}
-                              className={style.productoImagen}
-                            />
-                          ) : (
-                            <div className={style.productoPlaceholder}>
-                              Sin imagen
-                            </div>
-                          )}
-                        </div>
-
-                        <h4 className={style.productoTitulo}>{producto.titulo}</h4>
-
-                        <button
-                          type="button"
-                          className={style.loQuieroButton}
-                          onClick={() => abrirModalCompra(producto)}
-                        >
-                          <p>{icon.iconCarrito({ className: style.modalSvg })}</p>
-                          Lo quiero
-                        </button>
-
-                      </article>
-                    ))}
-                  </div>
-
-                ) : (
-
-                  <div className={style.panelVacioCentro}>
-                    No hay productos para mostrar.
-                  </div>
-
-                )}
-
-              </section>
-
-              {/* Marcas — solo las presentes en la categoría activa */}
-
-              <aside className={style.marcasBox}>
-
-                <h3 className={style.panelTitulo}>Marcas</h3>
-
-                <p className={style.panelSubtitulo}>
-                  Aliados con presencia constante en stock.
-                </p>
-
-                <div className={style.marcasLista}>
-                  {cargandoProductos ? (
-
-                    <p className={style.panelSubtitulo}>Cargando...</p>
-
-                  ) : marcasDeLaCategoria.length > 0 ? (
-
-                    marcasDeLaCategoria.map((marca) => (
-                      <div key={marca.nombre} className={style.marcaItem}>
-                        {marca.imagen ? (
-                          <img
-                            src={marca.imagen}
-                            alt={marca.nombre}
-                            className={style.marcaImg}
-                          />
-                        ) : (
-                          <div className={style.marcaPlaceholder}>
-                            {marca.nombre}
-                          </div>
-                        )}
-                      </div>
-                    ))
-
-                  ) : (
-
-                    <p className={style.panelSubtitulo}>Sin marcas.</p>
-
-                  )}
-                </div>
-
-              </aside>
-
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal */}
-
-      {mostrarModalCompra && (
-        <div
-          className={style.modalOverlay}
-          onClick={() => setMostrarModalCompra(false)}
-        >
-          <div
-            className={style.modalCompra}
-            onClick={(e) => e.stopPropagation()}
-          >
-
-            <h3 className={style.modalTitulo}>Como deseas continuar?</h3>
-
-            <p className={style.modalTexto}>
-              Elige una opcion para poder completar tu compra
-            </p>
-
-            <button
-              type="button"
-              className={style.modalBotonNaranja}
-              onClick={anadirAlCarrito}
-            >
-              <span>{icon.iconCarrito({ className: style.icono })}</span>
-              <span>Anadir al carrito</span>
-            </button>
-
-            <button
-              type="button"
-              className={style.modalBotonVerde}
-            >
-              <span>{icon.iconWhatsApp({ className: style.icono })}</span>
-              <span>Realizar la compra</span>
-            </button>
-
-          </div>
-        </div>
-      )}
+      {abierto && createPortal(panel, document.body)}
+      {modalCompra && createPortal(modalCompra, document.body)}
     </>
   );
 };

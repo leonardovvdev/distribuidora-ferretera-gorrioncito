@@ -1,119 +1,134 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import style from "./BarraInferior.module.css";
-import { images } from "../../../../../src/assets/img";
+import { images } from "../../../../assets/img";
 import { icon } from "../../../../../src/core/icons";
-import { Link, useNavigate } from "react-router-dom";
-import { listarCategorias } from "../../../../core/services/categoria.service";
-import { Categoria } from "../../../../core/types"
 
-const whatsappNumber = "51915144663";
-const whatsappMessage = "Hola, quiero solicitar una cotizacion.";
-const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
-const facebookUrl = "https://www.facebook.com/Distribuidoraferregorrioncito/";
-const tiktokUrl = "https://www.tiktok.com/@ferreteriagorrioncito0";
-const messengerUrl = "https://www.facebook.com/Distribuidoraferregorrioncito/";
+import { CATEGORIAS_MOCK } from "../../../../modules/home/data";
+
+/* ── Datos del negocio ───────────────────────────────── */
+const WHATSAPP_NUMBER = "51915144663";
+const WHATSAPP_MESSAGE = "Hola, quiero solicitar una cotizacion.";
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+const FACEBOOK_URL = "https://www.facebook.com/Distribuidoraferregorrioncito/";
+const TIKTOK_URL = "https://www.tiktok.com/@ferreteriagorrioncito0";
+const MESSENGER_URL = "https://www.facebook.com/Distribuidoraferregorrioncito/";
+
+const TELEFONOS = "942055324 - 901985491";
+const CORREO = "distribuidoraferrorgorrioncito@gmail.com";
+const DIRECCION =
+  "Av. Primero de Noviembre Mza. a Lote. 06 Snc, Quinta Aurora (Frente al Aeropuerto de Mazamari)";
+
+const CANTIDAD_CATEGORIAS = 5;
+
+/* ── Redes sociales ──────────────────────────────────── */
+// Para usar Instagram como en el diseño, reemplaza Messenger por:
+// { nombre: "Instagram", href: INSTAGRAM_URL, imagen: images.instagram }
+const REDES = [
+  { nombre: "Facebook", href: FACEBOOK_URL, imagen: images.facebook },
+  { nombre: "TikTok", href: TIKTOK_URL, imagen: images.tiktok },
+  { nombre: "Messenger", href: MESSENGER_URL, imagen: images.messenger },
+  { nombre: "WhatsApp", href: WHATSAPP_URL, imagen: images.whatsapp },
+];
 
 const BarraInferior = () => {
-  const navigate = useNavigate();
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  // Solo las primeras categorías
+  const categorias = useMemo(
+    () => CATEGORIAS_MOCK.slice(0, CANTIDAD_CATEGORIAS),
+    []
+  );
 
-  useEffect(() => {
-    listarCategorias(1, 5).then(setCategorias);
-  }, []);
-
-  const handleCategoriaClick = (nombreCategoria: string) => {
-    // "categoria" (singular) es exactamente el param que lee ProductPage
-    navigate(`/product?categoria=${encodeURIComponent(nombreCategoria)}`);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const subirAlInicio = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   return (
     <footer className={style.footer}>
       <div className={style.superior}>
+        {/* Marca */}
         <div className={style.columna}>
-          <div className={style.row}>
-            <div className={style.logoWrap}>
-              <img src={images.logoGorrion} alt="Logo Gorrioncito" className={style.logo} />
-            </div>
-            <div className={style.columna}>
-              <h3><b>GORRIONCITO</b></h3>
-              <p>DISTRIBUIDORA FERRETERA</p>
+          <div className={style.marca}>
+            <img
+              src={images.logoGorrion}
+              alt="Logo Gorrioncito"
+              className={style.logo}
+            />
+            <div>
+              <p className={style.marcaNombre}>GORRIONCITO</p>
+              <p className={style.marcaSub}>DISTRIBUIDORA Y FERRETERÍA</p>
             </div>
           </div>
 
-          <div>
-            <span>
-              Tu aliado en soluciones ferreteras. <br />
-              Calidad de confianza y compromiso en <br />
-              cada producto.
-            </span>
+          <p className={style.slogan}>
+            Tu aliado en soluciones ferreteras.
+            <br />
+            Calidad y compromiso en cada producto.
+          </p>
 
-            <div className={style.iconos}>
-              <a href={facebookUrl} target="_blank" rel="noreferrer"
-                className={`${style.icono} ${style.iconoFacebook} ${style.iconoLink}`}
-                aria-label="Visitar Facebook">
-                <img src={images.facebook} alt="Facebook" className={style.iconoImg} />
+          <div className={style.redes}>
+            {REDES.map(({ nombre, href, imagen }) => (
+              <a
+                key={nombre}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                className={style.red}
+                aria-label={`Visitar ${nombre}`}
+              >
+                <img src={imagen} alt="" className={style.redImg} />
               </a>
-              <a href={tiktokUrl} target="_blank" rel="noreferrer"
-                className={`${style.icono} ${style.iconoFacebook} ${style.iconoLink}`}
-                aria-label="Visitar TikTok">
-                <img src={images.tiktok} alt="TikTok" className={style.iconoImg} />
-              </a>
-              <a href={messengerUrl} target="_blank" rel="noreferrer"
-                className={`${style.icono} ${style.iconoFacebook} ${style.iconoLink}`}
-                aria-label="Visitar Messenger">
-                <img src={images.messenger} alt="Messenger" className={style.iconoImg} />
-              </a>
-              <a href={whatsappUrl} target="_blank" rel="noreferrer"
-                className={`${style.icono} ${style.iconoFacebook} ${style.iconoLink}`}
-                aria-label="Contactar por WhatsApp">
-                <img src={images.whatsapp} alt="Whatsapp" className={style.iconoImg} />
-              </a>
-            </div>
+            ))}
           </div>
         </div>
 
-        <div>
+        {/* Productos */}
+        <div className={`${style.columna} ${style.conDivisor}`}>
           <h3 className={style.titulo}>PRODUCTOS</h3>
-          <ul>
+          <ul className={style.lista}>
             {categorias.map((cat) => (
-              <li
-                key={cat.ctgraid}
-                onClick={() => handleCategoriaClick(cat.ctgranombre)}
-                style={{ cursor: "pointer" }}
-              >
-                {">"} {cat.ctgranombre}
+              <li key={cat.id}>
+                <Link
+                  to={`/product?categoria=${encodeURIComponent(cat.titulo)}`}
+                  className={style.itemProducto}
+                  onClick={subirAlInicio}
+                >
+                  {cat.titulo}
+                </Link>
               </li>
             ))}
           </ul>
         </div>
 
-        <div>
+        {/* Legal */}
+        <div className={`${style.columna} ${style.conDivisor}`}>
           <h3 className={style.titulo}>LEGAL</h3>
-          <Link to="/libroReclamaciones" className={style.listaLegal}>
-            {icon.iconHojaPaper({ className: style.iconoHoja })}
-            Libro de Reclamaciones
+          <Link to="/libroReclamaciones" className={style.itemLegal}>
+            {icon.iconHojaPaper({ className: style.icono })}
+            <span>Libro de Reclamaciones</span>
           </Link>
         </div>
 
-        <div>
+        {/* Contacto */}
+        <div className={`${style.columna} ${style.conDivisor}`}>
           <h3 className={style.titulo}>CONTACTO</h3>
-          <div className={style.contactos}>
-            <p>{icon.iconTelefono({ className: style.iconoTelefono })} 942055324- 901985491</p>
-            <p>{icon.iconCorreo({ className: style.iconoCorreo })}distribuidoraferrorgorrioncito@gmail.com</p>
-            <div className={style.filaDireccion}>
-              <p>{icon.iconUbicacion({ className: style.iconoUbicacion })}</p>
-              <p>Av. Primero de Noviembre Mza. a Lote. 06 Snc, Quinta Aurora(Frente al Aeropuerto de Mazamari)</p>
-            </div>
-          </div>
+          <ul className={style.contactos}>
+            <li>
+              {icon.iconTelefono({ className: style.icono })}
+              <span>{TELEFONOS}</span>
+            </li>
+            <li>
+              {icon.iconCorreo({ className: style.icono })}
+              <span>{CORREO}</span>
+            </li>
+            <li>
+              {icon.iconUbicacion({ className: style.icono })}
+              <span>{DIRECCION}</span>
+            </li>
+          </ul>
         </div>
       </div>
 
       <div className={style.inferior}>
         <p>&copy; 2026 Gorrioncito. Todos los derechos reservados.</p>
-        <div className={style.lineaVertical}></div>
-        <p>RUC:20613860321</p>
-        <div className={style.lineaVertical}></div>
+        <p>RUC 20613860321</p>
         <p>Empresa Individual de Responsabilidad Limitada</p>
       </div>
     </footer>

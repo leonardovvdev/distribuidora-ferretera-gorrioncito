@@ -1,73 +1,42 @@
-import { Outlet, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { LogOut } from "lucide-react";
-import { logout } from "../../app/routes/auth"
+import { Outlet, useLocation } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
 
-import BarraSuperior from "../components/layout/BarraSuperior/BarraSuperior";
 import NavBar from "../components/layout/NavBar/NavBar";
 import BarraInferior from "../components/layout/BarraInferior/BarraInferior";
+import CartSidebar from "../components/layout/cart-sidebar/cart-sidebar";
 import styles from "./SeeProductLayout.module.css";
 
-
-/* datos para usuario */
-interface UserData {
-    id: number;
-    ape: string,
-    am: string,
-    nom: string,
-    role: string;
-    photo: string;
-    state: number;
-    suc: string;
-};
-/* para la vista en mobil */
-interface MobilSidebarProps {
-    isMobilOpen: Boolean;
-    onMobileToggle: (open: boolean) => void;
-}
-
 export default function SeeProductLayout() {
-    /* extraer los datos del usuario localstore */
-    const [dataUser, setDataUser] = useState<UserData | null>(null);
-    /* activar el mobil */
-    const [isMobilOpen, setIsMobilOpen] = useState(false)
-    const navigate = useNavigate();
-    useEffect(() => {
-        const usuarioAlmacenado = localStorage.getItem("user");
-        if (usuarioAlmacenado) {
-            setDataUser(JSON.parse(usuarioAlmacenado));
-        }
-    }, []);
-    const Menu = () => (
-        <div className="">
-            {/* Header */}
+  const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const { pathname } = useLocation();
 
+  const abrirCarrito = useCallback(() => setCarritoAbierto(true), []);
+  const cerrarCarrito = useCallback(() => setCarritoAbierto(false), []);
 
-            {/* usuario */}
+  /* Abre el sidebar cuando cualquier componente dispara "openCart"
+     (por ejemplo, el botón de carrito de los productos) */
+  useEffect(() => {
+    window.addEventListener("openCart", abrirCarrito);
+    return () => window.removeEventListener("openCart", abrirCarrito);
+  }, [abrirCarrito]);
 
-            <Outlet />
+  /* Cierra el sidebar al cambiar de página */
+  useEffect(() => {
+    setCarritoAbierto(false);
+  }, [pathname]);
 
-        </div>
-    );
+  return (
+    <div className={styles.layout}>
+      <NavBar onAbrirCarrito={abrirCarrito} />
 
-    const BarraMEnu = () => (
-        <h1>hola</h1>
-    );
-    const CerrarSession = () => {
-        logout();
-        navigate("/")
-    }
+      <main className={styles.mainContent}>
+        <Outlet />
+      </main>
 
+      <BarraInferior />
 
-    return (
-        <>
-            <div className={styles.layout}>
-                <NavBar />
-                <main className={styles.mainContent}>
-                    <Menu />
-                </main>
-                <BarraInferior />
-            </div>
-        </>
-    );
+      {/* Carrito lateral derecho */}
+      <CartSidebar abierto={carritoAbierto} onCerrar={cerrarCarrito} />
+    </div>
+  );
 }
