@@ -1,0 +1,5 @@
+
+User-agent: *
+Allow: /
+
+Sitemap: https://distribuidora-ferretera-gorrioncito.vercel.app/sitemap.xml
